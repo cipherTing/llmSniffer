@@ -35,4 +35,5 @@ pnpm-debug.log*
 *.pem
 .vercel/
 .playwright-mcp/
+.watchman-cookie*
 Dockerfile.local
