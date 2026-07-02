@@ -24,6 +24,7 @@ services:
     environment:
       API_PORT: 3001
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN:?ADMIN_BOOTSTRAP_TOKEN is required}
       MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
       REDIS_URL: redis://redis:6379
     depends_on:

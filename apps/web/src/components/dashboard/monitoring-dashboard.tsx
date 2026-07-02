@@ -1,11 +1,12 @@
 "use client";
 
-import { ConfigProvider, Table, Tooltip, theme as antTheme, type TableColumnsType } from "antd";
-import { Crown, ExternalLink, Gauge, Handshake, RotateCcw, Search, Tag, TriangleAlert, Zap } from "lucide-react";
+import { ConfigProvider, Table, Tooltip, message, theme as antTheme, type TableColumnsType } from "antd";
+import { Crown, ExternalLink, Gauge, Handshake, LoaderCircle, RotateCcw, Tag, TriangleAlert, Zap } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useDeferredValue, useId, useMemo } from "react";
+import { useDeferredValue, useEffect, useId, useMemo, type CSSProperties } from "react";
 import type { ProviderTag, RelayHealthSnapshot, RelayMonitor, RelayStatus, SponsorTier, TimeWindow } from "@/lib/monitoring-types";
 import { TIME_WINDOWS } from "@/lib/monitoring-types";
+import { useMounted } from "@/lib/use-mounted";
 import { formatPercent, statusLabels } from "@/lib/monitoring-utils";
 import { useDashboardStore } from "@/stores/dashboard-store";
 import { StatusBadge } from "./status-badge";
@@ -20,39 +21,72 @@ const windowLabels: Record<TimeWindow, string> = {
 };
 
 const providerMeta: Record<ProviderTag, { label: string; className: string }> = {
-  OpenAI: {
-    label: "OpenAI",
-    className: "border-zinc-500/20 bg-zinc-500/8 text-zinc-800 dark:text-zinc-100",
-  },
-  Anthropic: {
-    label: "Anthropic",
-    className: "border-stone-500/20 bg-stone-500/8 text-stone-700 dark:text-stone-300",
-  },
-  Gemini: {
-    label: "Gemini",
-    className: "border-sky-500/20 bg-sky-500/8 text-sky-700 dark:text-sky-300",
-  },
+  OpenAI: { label: "OpenAI", className: "llms-provider-openai" },
+  Anthropic: { label: "Anthropic", className: "llms-provider-anthropic" },
+  Gemini: { label: "Gemini", className: "llms-provider-gemini" },
 };
 
 const sponsorMeta: Record<SponsorTier, { label: string; icon: "standard" | "premium"; className: string }> = {
   standard: {
     label: "普通赞助商",
     icon: "standard",
-    className: "border-cyan-500/25 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300",
+    className: "llms-marker-standard",
   },
   premium: {
     label: "高级赞助商",
     icon: "premium",
-    className: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",
+    className: "llms-marker-premium",
   },
 };
 
 const gitShortHash = "ca60c3d";
 
-export function MonitoringDashboard({ snapshot }: { snapshot: RelayHealthSnapshot }) {
+const loadingPanelStyle: CSSProperties = {
+  display: "grid",
+  placeItems: "center",
+  gap: 10,
+  minHeight: 220,
+  border: "1px solid var(--border)",
+  borderRadius: 14,
+  background: "radial-gradient(circle at 50% 42%, rgba(31, 95, 216, 0.08), transparent 12rem), var(--surface)",
+  color: "var(--text)",
+  textAlign: "center",
+  boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+};
+
+const loadingMarkBaseStyle: CSSProperties = {
+  display: "inline-grid",
+  placeItems: "center",
+  width: 42,
+  height: 42,
+  border: "1px solid var(--border)",
+  borderRadius: 999,
+  color: "var(--accent)",
+};
+
+const loadingTitleStyle: CSSProperties = {
+  fontSize: 15,
+  fontWeight: 700,
+};
+
+export function MonitoringDashboard({
+  snapshot,
+  error,
+  loading = false,
+}: {
+  snapshot: RelayHealthSnapshot;
+  error?: string | null;
+  loading?: boolean;
+}) {
   const { resolvedTheme } = useTheme();
+  const mounted = useMounted();
+  const [messageApi, messageContextHolder] = message.useMessage();
   const { window, query, status, provider, setWindow, setQuery, setStatus, setProvider, resetFilters } = useDashboardStore();
   const deferredQuery = useDeferredValue(query);
+
+  useEffect(() => {
+    if (error) void messageApi.error(error);
+  }, [error, messageApi]);
 
   const filteredRelays = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
@@ -86,7 +120,7 @@ export function MonitoringDashboard({ snapshot }: { snapshot: RelayHealthSnapsho
   }, [snapshot.relays]);
 
   const columns = useMemo(() => buildColumns(window), [window]);
-  const isDark = resolvedTheme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   return (
     <ConfigProvider
@@ -113,36 +147,37 @@ export function MonitoringDashboard({ snapshot }: { snapshot: RelayHealthSnapsho
           Tooltip: {
             fontSize: 11,
           },
+          Empty: {
+            colorTextDescription: "var(--muted)",
+          },
         },
       }}
+      renderEmpty={() => <div className="llms-empty-state">{loading ? "正在加载监控列表" : snapshot.relays.length === 0 ? "还没有收录中转站" : "没有符合当前筛选条件的中转站"}</div>}
     >
+      {messageContextHolder}
       <main className="llms-dashboard min-h-screen bg-[var(--background)] text-[var(--text)]">
         <div className="w-full px-4 py-4 md:px-16">
-          <header className="flex items-center justify-between gap-5 border-b border-[var(--border)] pb-3">
-            <div className="space-y-1">
-              <div>
-                <h1 className="text-lg font-semibold tracking-normal">LLMSniffer</h1>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">第三方 AI 中转站可用性、延迟和近期稳定性</p>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-[var(--muted)]">
-                <span>快照时间 {new Date(snapshot.generatedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>
-              </div>
+          <header className="llms-header flex items-center justify-between gap-5 border-b border-[var(--border)] pb-3">
+            <div>
+              <h1 className="text-lg font-semibold tracking-normal">LLMSniffer</h1>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">第三方 AI 中转站可用性、延迟和近期稳定性</p>
             </div>
             <ThemeToggle />
           </header>
 
-          <section className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--background)]/95 py-2 backdrop-blur">
+          <section className="llms-toolbar sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--background)]/95 py-2 backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-0.5 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
+              <div className="llms-window-tabs flex items-center gap-0.5 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
                 {TIME_WINDOWS.map((option) => (
                   <button
-                    className={`h-6 rounded px-2 text-xs font-medium transition ${
+                    className={`llms-window-tab h-6 rounded px-2 text-xs font-medium transition ${
                       option === window
-                        ? "bg-[var(--accent)] text-white"
+                        ? "llms-window-tab-active bg-[var(--accent)]"
                         : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                     }`}
                     key={option}
                     onClick={() => setWindow(option)}
+                    style={activeTextStyle(option === window)}
                     type="button"
                   >
                     {windowLabels[option]}
@@ -152,9 +187,8 @@ export function MonitoringDashboard({ snapshot }: { snapshot: RelayHealthSnapsho
 
               <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5 md:flex-none">
                 <label className="relative block min-w-[180px] flex-1 md:min-w-0 md:flex-none">
-                  <Search aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={14} />
                   <input
-                    className="h-7 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] pl-7 pr-2 text-xs text-[var(--text)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:w-[240px]"
+                    className="h-7 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-xs text-[var(--text)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:w-[240px]"
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="搜索站名、域名、通道"
                     type="search"
@@ -197,31 +231,33 @@ export function MonitoringDashboard({ snapshot }: { snapshot: RelayHealthSnapsho
 
           <section className="py-3">
             <div className="hidden md:block">
-              <Table<RelayMonitor>
-                className="llms-table"
-                columns={columns}
-                dataSource={filteredRelays}
-                pagination={false}
-                rowClassName={(relay: RelayMonitor) => (relay.sponsorTier === "premium" ? "llms-table-row-premium" : "")}
-                rowKey="id"
-                showSorterTooltip={false}
-                sortDirections={["ascend", "descend"]}
-                tableLayout="fixed"
-              />
-              {filteredRelays.length === 0 ? (
-                <div className="border border-t-0 border-[var(--border)] bg-[var(--surface)] px-4 py-10 text-center text-sm text-[var(--muted)]">
-                  没有符合当前筛选条件的中转站
-                </div>
-              ) : null}
+              {loading && snapshot.relays.length === 0 ? (
+                <LoadingPanel isDark={isDark} />
+              ) : (
+                <Table<RelayMonitor>
+                  className="llms-table"
+                  columns={columns}
+                  dataSource={filteredRelays}
+                  pagination={false}
+                  rowClassName={(relay: RelayMonitor) => (relay.sponsorTier === "premium" ? "llms-table-row-premium" : "")}
+                  rowKey="id"
+                  showSorterTooltip={false}
+                  sortDirections={["ascend", "descend"]}
+                  tableLayout="fixed"
+                />
+              )}
             </div>
 
             <div className="space-y-2 md:hidden">
-              {filteredRelays.map((relay) => (
+              {loading ? (
+                <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-8 text-center text-sm text-[var(--muted)]">正在加载监控列表</div>
+              ) : null}
+              {!loading && filteredRelays.map((relay) => (
                 <RelayCard key={relay.id} relay={relay} window={window} />
               ))}
-              {filteredRelays.length === 0 ? (
+              {!loading && filteredRelays.length === 0 ? (
                 <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-8 text-center text-sm text-[var(--muted)]">
-                  没有符合当前筛选条件的中转站
+                  {snapshot.relays.length === 0 ? "还没有收录中转站" : "没有符合当前筛选条件的中转站"}
                 </div>
               ) : null}
             </div>
@@ -249,7 +285,7 @@ function buildColumns(window: TimeWindow): TableColumnsType<RelayMonitor> {
           <IntervalIcon seconds={relay.monitorIntervalSeconds} />
         </div>
       ),
-      width: "4%",
+      width: "7%",
     },
     {
       title: "中转站",
@@ -263,31 +299,33 @@ function buildColumns(window: TimeWindow): TableColumnsType<RelayMonitor> {
           <ExternalLink aria-hidden="true" className="shrink-0 text-[var(--muted)]" size={14} />
         </div>
       ),
-      width: "20%",
+      sorter: (a, b) => compareRelayName(a, b),
+      width: "19%",
     },
     {
       title: "状态",
       key: "status",
       align: "center",
       render: (_, relay) => <StatusBadge status={relay.current.status} />,
+      sorter: (a, b) => statusSortValue(a.current.status) - statusSortValue(b.current.status),
       width: "10%",
     },
     {
       title: "厂商",
       key: "providers",
       render: (_, relay) => <ProviderIcons providers={channelProviders(relay)} />,
-      width: "8%",
+      width: "9%",
     },
     {
       title: "可用率",
       key: "uptime",
       align: "center",
-      render: (_, relay) => <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{formatPercent(relay.windows[window].uptimePercent)}</span>,
+      render: (_, relay) => <UptimeValue relay={relay} window={window} />,
       sorter: (a, b, sortOrder) => {
         const sponsorCompare = compareSponsorTier(a, b);
         if (sponsorCompare !== 0) return sortOrder === "descend" ? -sponsorCompare : sponsorCompare;
 
-        return a.windows[window].uptimePercent - b.windows[window].uptimePercent;
+        return uptimeSortValue(a, window) - uptimeSortValue(b, window);
       },
       defaultSortOrder: "descend",
       width: "8%",
@@ -296,14 +334,12 @@ function buildColumns(window: TimeWindow): TableColumnsType<RelayMonitor> {
       title: "趋势",
       key: "trend",
       render: (_, relay) => <ChannelTrends relay={relay} window={window} />,
-      width: "50%",
+      width: "47%",
     },
   ];
 }
 
 function RelayCard({ relay, window }: { relay: RelayMonitor; window: TimeWindow }) {
-  const metrics = relay.windows[window];
-
   return (
     <article className={`rounded-md border border-[var(--border)] bg-[var(--surface)] p-2.5 ${relay.sponsorTier === "premium" ? "border-l-4 border-l-amber-400" : ""}`}>
       <div className="flex items-start justify-between gap-3">
@@ -324,7 +360,7 @@ function RelayCard({ relay, window }: { relay: RelayMonitor; window: TimeWindow 
         </div>
         <div>
           <div className="text-[var(--muted)]">可用率</div>
-          <div className="mt-0.5 font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{formatPercent(metrics.uptimePercent)}</div>
+          <div className="mt-0.5"><UptimeValue relay={relay} window={window} /></div>
         </div>
       </div>
 
@@ -332,6 +368,25 @@ function RelayCard({ relay, window }: { relay: RelayMonitor; window: TimeWindow 
         <ChannelTrends relay={relay} window={window} />
       </div>
     </article>
+  );
+}
+
+function LoadingPanel({ isDark }: { isDark: boolean }) {
+  return (
+    <div className="llms-loading-panel" aria-busy="true" aria-live="polite" style={loadingPanelStyle}>
+      <div
+        className="llms-loading-mark"
+        style={{
+          ...loadingMarkBaseStyle,
+          background: isDark ? "rgba(59, 130, 246, 0.16)" : "#e8f0ff",
+        }}
+      >
+        <LoaderCircle aria-hidden="true" className="animate-spin" size={20} />
+      </div>
+      <div>
+        <div className="llms-loading-title" style={loadingTitleStyle}>加载中</div>
+      </div>
+    </div>
   );
 }
 
@@ -343,9 +398,9 @@ function PlatformStatement() {
         <div className="flex gap-3 rounded-md border border-[var(--row-border)] bg-[var(--table-head)] p-3">
           <Zap aria-hidden="true" className="mt-0.5 shrink-0 text-cyan-500" size={17} />
           <div>
-            <div className="text-sm font-semibold text-[var(--text)]">真实消耗探测</div>
+            <div className="text-sm font-semibold text-[var(--text)]">探测说明</div>
             <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-              基于真实 Token 消耗发起探测，数据受当前网络环境和第三方服务商负载影响，用于还原 API 响应质量。
+              当前已接入收录管理；正式探测接入前，趋势数据仅作为列表结构占位展示。
             </p>
           </div>
         </div>
@@ -374,7 +429,7 @@ function SponsorIcon({ tier }: { tier: SponsorTier }) {
 
   return (
     <Tooltip destroyOnHidden title={meta.label} mouseEnterDelay={0} mouseLeaveDelay={0}>
-      <span className={`inline-flex h-4 w-4 items-center justify-center rounded border ${meta.className}`}>
+      <span className={`llms-marker ${meta.className} inline-flex items-center justify-center`}>
         {meta.icon === "premium" ? <Crown aria-hidden="true" size={11} strokeWidth={2.2} /> : <Handshake aria-hidden="true" size={11} strokeWidth={2.2} />}
       </span>
     </Tooltip>
@@ -384,7 +439,7 @@ function SponsorIcon({ tier }: { tier: SponsorTier }) {
 function IntervalIcon({ seconds }: { seconds: number }) {
   return (
     <Tooltip destroyOnHidden title={`探测间隔 ${formatDuration(seconds)}`} mouseEnterDelay={0} mouseLeaveDelay={0}>
-      <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-indigo-500/25 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
+      <span className="llms-marker llms-marker-interval inline-flex items-center justify-center">
         <Gauge aria-hidden="true" size={11} strokeWidth={2.2} />
       </span>
     </Tooltip>
@@ -393,17 +448,18 @@ function IntervalIcon({ seconds }: { seconds: number }) {
 
 function ProviderIcons({ providers }: { providers: ProviderTag[] }) {
   return (
-    <div className="flex min-w-0 flex-nowrap items-center gap-1" title={providers.join(" / ")}>
+    <div className="flex min-w-0 flex-wrap items-center gap-1" title={providers.join(" / ")}>
       {providers.map((provider) => {
         const meta = providerMeta[provider];
 
         return (
           <span
             aria-label={meta.label}
-            className={`inline-flex h-5 w-5 items-center justify-center rounded border ${meta.className}`}
+            className={`llms-provider-chip ${meta.className} inline-flex items-center`}
             key={provider}
           >
             <ProviderLogo provider={provider} />
+            <span>{meta.label}</span>
           </span>
         );
       })}
@@ -475,6 +531,34 @@ function ChannelTrends({ relay, window }: { relay: RelayMonitor; window: TimeWin
   );
 }
 
+function UptimeValue({ relay, window }: { relay: RelayMonitor; window: TimeWindow }) {
+  if (relay.current.status === "no_data") {
+    return <span className="font-medium text-[var(--muted)]">无数据</span>;
+  }
+
+  return <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{formatPercent(relay.windows[window].uptimePercent)}</span>;
+}
+
+function uptimeSortValue(relay: RelayMonitor, window: TimeWindow) {
+  return relay.current.status === "no_data" ? -1 : relay.windows[window].uptimePercent;
+}
+
+function compareRelayName(a: RelayMonitor, b: RelayMonitor) {
+  return a.name.localeCompare(b.name, "zh-CN") || a.domain.localeCompare(b.domain, "zh-CN");
+}
+
+function statusSortValue(status: RelayStatus) {
+  const order: Record<RelayStatus, number> = {
+    operational: 0,
+    flaky: 1,
+    degraded: 2,
+    down: 3,
+    no_data: 4,
+  };
+
+  return order[status];
+}
+
 function trendLayout(channelCount: number) {
   if (channelCount === 1) return { containerClassName: "h-7", itemClassName: "h-5" };
   if (channelCount === 2) return { containerClassName: "h-[35px] gap-[3px]", itemClassName: "h-full max-h-4" };
@@ -495,6 +579,8 @@ function getPopupContainer(triggerNode?: HTMLElement) {
 }
 
 function channelProviders(relay: RelayMonitor) {
+  if (relay.providers && relay.providers.length > 0) return relay.providers;
+
   return relay.channels.reduce<ProviderTag[]>((providers, channel) => {
     if (!providers.includes(channel.provider)) providers.push(channel.provider);
     return providers;
@@ -507,4 +593,8 @@ function formatDuration(totalSeconds: number) {
   const seconds = totalSeconds % 60;
 
   return `${hours > 0 ? `${hours}h` : ""}${minutes > 0 ? `${minutes}m` : ""}${seconds > 0 || totalSeconds === 0 ? `${seconds}s` : ""}`;
+}
+
+function activeTextStyle(active: boolean) {
+  return active ? { color: "#ffffff" } : undefined;
 }
