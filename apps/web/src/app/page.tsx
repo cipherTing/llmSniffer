@@ -1,6 +1,5 @@
-import { MonitoringDashboard } from "@/components/dashboard/monitoring-dashboard";
-import { relayHealthSnapshot } from "@/lib/monitoring-snapshot";
+import { DashboardLoader } from "@/components/dashboard/dashboard-loader";
 
 export default function Home() {
-  return <MonitoringDashboard snapshot={relayHealthSnapshot} />;
+  return <DashboardLoader />;
 }

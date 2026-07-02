@@ -40,7 +40,7 @@ function TrendTooltipContent({ bucket }: { bucket: TrendBucket }) {
       </div>
       <div className="mt-0.5 flex items-center justify-between gap-2">
         <span className="text-white/70">延迟</span>
-        <span className="font-semibold tabular-nums">{formatLatency(bucket.latencyMs)}</span>
+        <span className="font-semibold tabular-nums">{formatBucketLatency(bucket)}</span>
       </div>
       {bucket.failureCount > 0 ? (
         <div className="mt-0.5 flex items-center justify-between gap-2 text-amber-200">
@@ -53,9 +53,12 @@ function TrendTooltipContent({ bucket }: { bucket: TrendBucket }) {
 }
 
 function bucketLabel(bucket: TrendBucket) {
-  return `${formatBucketTime(bucket.timestamp)} · ${trendLabels[bucket.status]} · 延迟 ${formatLatency(
-    bucket.latencyMs,
-  )}`;
+  return `${formatBucketTime(bucket.timestamp)} · ${trendLabels[bucket.status]} · 延迟 ${formatBucketLatency(bucket)}`;
+}
+
+function formatBucketLatency(bucket: TrendBucket) {
+  if (bucket.status === "no_data") return "暂无数据";
+  return formatLatency(bucket.latencyMs);
 }
 
 function formatBucketTime(timestamp: string) {

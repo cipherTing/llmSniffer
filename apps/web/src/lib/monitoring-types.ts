@@ -40,6 +40,7 @@ export type RelayMonitor = {
   domain: string;
   url: string;
   sponsorTier: SponsorTier;
+  providers?: ProviderTag[];
   channels: RelayChannel[];
   collectedDays: number;
   monitorIntervalSeconds: number;

@@ -1,0 +1,17 @@
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsString, Length, MinLength } from 'class-validator';
+
+export class CreateAdminDto {
+  @IsString()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsNotEmpty()
+  @Length(3, 64)
+  username!: string;
+
+  @IsString()
+  @MinLength(8)
+  @Length(8, 128)
+  password!: string;
+}
