@@ -1,41 +1,76 @@
 import { PublicRelaysService } from './public-relays.service';
 
 describe('PublicRelaysService', () => {
-  it('maps each request probe to one public trend channel', async () => {
-    const find = jest.fn(() => ({
-      sort: jest.fn(() => ({
-        exec: jest.fn(() => [
-          {
-            _id: { toString: () => 'site-1' },
-            name: 'Relay A',
-            domain: 'relay.example',
-            url: 'https://relay.example/',
-            sponsorTier: 'standard',
-            providers: ['OpenAI', 'Gemini'],
-            monitorIntervalSeconds: 300,
-            probes: [
-              { modelName: 'gpt-4o-mini', requestTemplateId: 'openai-chat-basic' },
-              { modelName: 'gemini-1.5-flash', requestTemplateId: 'gemini-generate-basic' },
-              { modelName: 'gpt-4o', requestTemplateId: 'openai-chat-basic' },
-            ],
-          },
-        ]),
-      })),
-    }));
-    const service = new PublicRelaysService({ find } as never);
+  it('returns the cached public relay snapshot without rebuilding', async () => {
+    const cached = {
+      generatedAt: '2026-07-05T00:00:00.000Z',
+      relays: [{ id: 'site-1', channels: [] }],
+    };
+    const redisService = { getJson: jest.fn().mockResolvedValue(cached) };
+    const snapshotModel = { findOne: jest.fn() };
+    const snapshotService = { rebuildPublicRelaysSnapshot: jest.fn() };
+    const service = new PublicRelaysService(
+      redisService as never,
+      snapshotModel as never,
+      snapshotService as never,
+    );
 
     const snapshot = await service.getSnapshot();
 
-    expect(snapshot.relays).toHaveLength(1);
-    expect(snapshot.relays[0]).toMatchObject({
-      id: 'site-1',
-      name: 'Relay A',
-      current: { status: 'no_data', reason: '等待首次探测' },
-      providers: ['OpenAI', 'Gemini'],
-    });
-    expect(snapshot.relays[0].channels.map((channel) => channel.label)).toEqual(
-      ['gpt-4o-mini', 'gemini-1.5-flash', 'gpt-4o'],
+    expect(snapshot).toBe(cached);
+    expect(snapshotModel.findOne).not.toHaveBeenCalled();
+    expect(snapshotService.rebuildPublicRelaysSnapshot).not.toHaveBeenCalled();
+    expect(JSON.stringify(snapshot)).not.toContain('apiKey');
+  });
+
+  it('returns the persisted snapshot before rebuilding from probes', async () => {
+    const persistedSnapshot = {
+      generatedAt: '2026-07-05T00:10:00.000Z',
+      relays: [{ id: 'site-2', channels: [] }],
+    };
+    const redisService = { getJson: jest.fn().mockResolvedValue(null) };
+    const snapshotModel = {
+      findOne: jest.fn(() => ({
+        exec: jest.fn().mockResolvedValue({ snapshot: persistedSnapshot }),
+      })),
+    };
+    const snapshotService = { rebuildPublicRelaysSnapshot: jest.fn() };
+    const service = new PublicRelaysService(
+      redisService as never,
+      snapshotModel as never,
+      snapshotService as never,
     );
-    expect(snapshot.relays[0].channels[0].trends['90m']).toHaveLength(18);
+
+    const snapshot = await service.getSnapshot();
+
+    expect(snapshot).toBe(persistedSnapshot);
+    expect(snapshotModel.findOne).toHaveBeenCalledWith({
+      key: 'public:relays:snapshot',
+    });
+    expect(snapshotService.rebuildPublicRelaysSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds only when no cached or persisted snapshot exists', async () => {
+    const rebuilt = {
+      generatedAt: '2026-07-05T00:20:00.000Z',
+      relays: [{ id: 'site-3', channels: [] }],
+    };
+    const redisService = { getJson: jest.fn().mockResolvedValue(null) };
+    const snapshotModel = {
+      findOne: jest.fn(() => ({ exec: jest.fn().mockResolvedValue(null) })),
+    };
+    const snapshotService = {
+      rebuildPublicRelaysSnapshot: jest.fn().mockResolvedValue(rebuilt),
+    };
+    const service = new PublicRelaysService(
+      redisService as never,
+      snapshotModel as never,
+      snapshotService as never,
+    );
+
+    const snapshot = await service.getSnapshot();
+
+    expect(snapshot).toBe(rebuilt);
+    expect(snapshotService.rebuildPublicRelaysSnapshot).toHaveBeenCalledTimes(1);
   });
 });

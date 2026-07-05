@@ -9,6 +9,7 @@ import { ProbeModule } from './probes/probe.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisModule } from './redis/redis.module';
 import { SecretsModule } from './secrets/secrets.module';
+import { SnapshotModule } from './snapshots/snapshot.module';
 import {
   MonitoredSite,
   MonitoredSiteSchema,
@@ -16,6 +17,7 @@ import {
 import { MetricsWorker } from './workers/metrics.worker';
 import { ProbeWorker } from './workers/probe.worker';
 import { SchedulerWorker } from './workers/scheduler.worker';
+import { SnapshotWorker } from './workers/snapshot.worker';
 
 @Module({
   imports: [
@@ -37,10 +39,17 @@ import { SchedulerWorker } from './workers/scheduler.worker';
     QueueModule,
     ProbeModule,
     MetricsModule,
+    SnapshotModule,
     SecretsModule,
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService, SchedulerWorker, ProbeWorker, MetricsWorker],
+  providers: [
+    AppService,
+    SchedulerWorker,
+    ProbeWorker,
+    MetricsWorker,
+    SnapshotWorker,
+  ],
 })
 export class AppModule {}
