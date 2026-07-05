@@ -7,6 +7,11 @@ import { AdminModule } from './admin/admin.module';
 import { ProbeModule } from './probes/probe.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisModule } from './redis/redis.module';
+import {
+  MonitoredSite,
+  MonitoredSiteSchema,
+} from './sites/schemas/monitored-site.schema';
+import { SchedulerWorker } from './workers/scheduler.worker';
 
 @Module({
   imports: [
@@ -21,12 +26,15 @@ import { RedisModule } from './redis/redis.module';
         uri: configService.getOrThrow<string>('MONGODB_URI'),
       }),
     }),
+    MongooseModule.forFeature([
+      { name: MonitoredSite.name, schema: MonitoredSiteSchema },
+    ]),
     RedisModule,
     QueueModule,
     ProbeModule,
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, SchedulerWorker],
 })
 export class AppModule {}
