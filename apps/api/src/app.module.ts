@@ -11,6 +11,7 @@ import {
   MonitoredSite,
   MonitoredSiteSchema,
 } from './sites/schemas/monitored-site.schema';
+import { ProbeWorker } from './workers/probe.worker';
 import { SchedulerWorker } from './workers/scheduler.worker';
 
 @Module({
@@ -35,6 +36,6 @@ import { SchedulerWorker } from './workers/scheduler.worker';
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService, SchedulerWorker],
+  providers: [AppService, SchedulerWorker, ProbeWorker],
 })
 export class AppModule {}
