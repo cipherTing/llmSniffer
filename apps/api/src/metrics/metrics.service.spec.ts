@@ -23,9 +23,14 @@ describe('MetricsService', () => {
       })),
     };
     const bucketModel = {
-      findOneAndUpdate: jest.fn(() => ({ exec: jest.fn().mockResolvedValue({}) })),
+      findOneAndUpdate: jest.fn(() => ({
+        exec: jest.fn().mockResolvedValue({}),
+      })),
     };
-    const service = new MetricsService(resultModel as never, bucketModel as never);
+    const service = new MetricsService(
+      resultModel as never,
+      bucketModel as never,
+    );
 
     const metrics = await service.aggregateProbeWindow({
       siteId: 'site-1',

@@ -51,18 +51,51 @@ export class ProbeRunnerService {
       });
 
       if (!response.ok || !response.body) {
-        return this.finish(input, startedAt, null, response.status, classifyHttpStatus(response.status), reasonForHttpStatus(response.status));
+        return this.finish(
+          input,
+          startedAt,
+          null,
+          response.status,
+          classifyHttpStatus(response.status),
+          reasonForHttpStatus(response.status),
+        );
       }
 
-      const firstTokenAt = await readStreamUntilComplete(response.body, input.provider, this.runtime.now);
+      const firstTokenAt = await readStreamUntilComplete(
+        response.body,
+        input.provider,
+        this.runtime.now,
+      );
       if (!firstTokenAt) {
-        return this.finish(input, startedAt, null, response.status, 'down', '流式响应未返回 token');
+        return this.finish(
+          input,
+          startedAt,
+          null,
+          response.status,
+          'down',
+          '流式响应未返回 token',
+        );
       }
 
-      return this.finish(input, startedAt, firstTokenAt, response.status, 'ok', '收到首个 token');
+      return this.finish(
+        input,
+        startedAt,
+        firstTokenAt,
+        response.status,
+        'ok',
+        '收到首个 token',
+      );
     } catch (error) {
       const isTimeout = error instanceof Error && error.name === 'AbortError';
-      return this.finish(input, startedAt, null, null, 'down', isTimeout ? '探测请求超时' : '探测请求失败', isTimeout ? 'timeout' : 'network_error');
+      return this.finish(
+        input,
+        startedAt,
+        null,
+        null,
+        'down',
+        isTimeout ? '探测请求超时' : '探测请求失败',
+        isTimeout ? 'timeout' : 'network_error',
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -89,7 +122,9 @@ export class ProbeRunnerService {
       startedAt,
       firstTokenAt,
       finishedAt,
-      firstTokenLatencyMs: firstTokenAt ? firstTokenAt.getTime() - startedAt.getTime() : null,
+      firstTokenLatencyMs: firstTokenAt
+        ? firstTokenAt.getTime() - startedAt.getTime()
+        : null,
       totalLatencyMs: finishedAt.getTime() - startedAt.getTime(),
       status,
       httpStatus,
@@ -100,7 +135,11 @@ export class ProbeRunnerService {
   }
 }
 
-async function readStreamUntilComplete(body: ReadableStream<Uint8Array>, provider: ProbeProvider, now: () => Date) {
+async function readStreamUntilComplete(
+  body: ReadableStream<Uint8Array>,
+  provider: ProbeProvider,
+  now: () => Date,
+) {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let firstTokenAt: Date | null = null;

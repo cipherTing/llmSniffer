@@ -102,6 +102,9 @@ export class MetricsService {
 
 function percentile(values: number[], ratio: number) {
   if (values.length === 0) return null;
-  const index = Math.min(values.length - 1, Math.ceil(values.length * ratio) - 1);
+  const index = Math.min(
+    values.length - 1,
+    Math.ceil(values.length * ratio) - 1,
+  );
   return values[index];
 }

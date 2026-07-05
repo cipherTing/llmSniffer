@@ -43,7 +43,12 @@ export class ProbeResult {
   @Prop({ required: true })
   totalLatencyMs!: number;
 
-  @Prop({ required: true, type: String, enum: PROBE_RESULT_STATUSES, index: true })
+  @Prop({
+    required: true,
+    type: String,
+    enum: PROBE_RESULT_STATUSES,
+    index: true,
+  })
   status!: ProbeResultStatus;
 
   @Prop({ type: Number })

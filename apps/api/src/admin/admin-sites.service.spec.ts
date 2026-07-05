@@ -2,6 +2,30 @@ import { ConfigService } from '@nestjs/config';
 import { SecretsService } from '../secrets/secrets.service';
 import { AdminSitesService } from './admin-sites.service';
 
+type ProbePayload = {
+  id: string;
+  requestTemplateId: string;
+  baseUrl: string;
+  apiKeyEncrypted: string;
+  apiKeyMasked: string;
+  modelName: string;
+  enabled: boolean;
+  region: string;
+  nextRunAt: Date;
+  apiKey?: string;
+};
+
+type SitePayload = {
+  name: string;
+  url: string;
+  urlNormalized: string;
+  domain: string;
+  sponsorTier: string;
+  monitorIntervalSeconds: number;
+  providers: string[];
+  probes: ProbePayload[];
+};
+
 describe('AdminSitesService', () => {
   const secretKey = Buffer.alloc(32, 7).toString('base64url');
   const secretsService = new SecretsService({
@@ -42,28 +66,23 @@ describe('AdminSitesService', () => {
       { id: 'admin-1', username: 'root', role: 'system' },
     );
 
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Test Relay',
-        url: 'https://example.com/',
-        urlNormalized: 'https://example.com/',
-        domain: 'example.com',
-        probes: [
-          expect.objectContaining({
-            id: expect.stringMatching(/^probe_/),
-            apiKeyEncrypted: expect.stringContaining('v1:'),
-            apiKeyMasked: 'sk-...test',
-            enabled: true,
-            region: 'default',
-            nextRunAt: expect.any(Date),
-          }),
-          expect.objectContaining({ id: expect.stringMatching(/^probe_/) }),
-        ],
-      }),
-    );
-    const createdPayload = create.mock.calls[0][0] as {
-      probes: { apiKey?: string; apiKeyEncrypted: string }[];
-    };
+    expect(create).toHaveBeenCalledTimes(1);
+    const createdPayload = create.mock.calls[0][0] as SitePayload;
+    expect(createdPayload).toMatchObject({
+      name: 'Test Relay',
+      url: 'https://example.com/',
+      urlNormalized: 'https://example.com/',
+      domain: 'example.com',
+    });
+    expect(createdPayload.probes[0]).toMatchObject({
+      apiKeyMasked: 'sk-...test',
+      enabled: true,
+      region: 'default',
+    });
+    expect(createdPayload.probes[0].id).toMatch(/^probe_/);
+    expect(createdPayload.probes[0].apiKeyEncrypted).toContain('v1:');
+    expect(createdPayload.probes[0].nextRunAt).toBeInstanceOf(Date);
+    expect(createdPayload.probes[1].id).toMatch(/^probe_/);
     expect(createdPayload.probes[0].apiKeyEncrypted).not.toContain(
       'sk-openai-test',
     );
@@ -74,27 +93,25 @@ describe('AdminSitesService', () => {
       domain: 'example.com',
       sponsorTier: 'premium',
       providers: ['OpenAI', 'Anthropic'],
-      probes: [
-        {
-          requestTemplateId: 'openai-chat-basic',
-          baseUrl: 'https://api.example.com/v1',
-          apiKeyMasked: 'sk-...test',
-          modelName: 'gpt-4o-mini',
-          enabled: true,
-          region: 'default',
-          nextRunAt: expect.any(Date),
-        },
-        {
-          requestTemplateId: 'anthropic-message-basic',
-          baseUrl: 'https://api.anthropic.com/',
-          apiKeyMasked: 'sk-...test',
-          modelName: 'claude-3-5-haiku',
-          enabled: true,
-          region: 'default',
-          nextRunAt: expect.any(Date),
-        },
-      ],
     });
+    expect(site.probes[0]).toMatchObject({
+      requestTemplateId: 'openai-chat-basic',
+      baseUrl: 'https://api.example.com/v1',
+      apiKeyMasked: 'sk-...test',
+      modelName: 'gpt-4o-mini',
+      enabled: true,
+      region: 'default',
+    });
+    expect(site.probes[0].nextRunAt).toBeInstanceOf(Date);
+    expect(site.probes[1]).toMatchObject({
+      requestTemplateId: 'anthropic-message-basic',
+      baseUrl: 'https://api.anthropic.com/',
+      apiKeyMasked: 'sk-...test',
+      modelName: 'claude-3-5-haiku',
+      enabled: true,
+      region: 'default',
+    });
+    expect(site.probes[1].nextRunAt).toBeInstanceOf(Date);
     expect(site.probes[0]).not.toHaveProperty('apiKey');
   });
 
@@ -165,22 +182,21 @@ describe('AdminSitesService', () => {
     });
 
     expect(select).toHaveBeenCalledWith('+probes.apiKeyEncrypted');
-    expect(findByIdAndUpdate).toHaveBeenCalledWith(
-      '507f1f77bcf86cd799439011',
-      {
-        $set: expect.objectContaining({
-          probes: [
-            expect.objectContaining({
-              id: 'probe_existing',
-              apiKeyEncrypted: 'v1:existing-secret',
-              apiKeyMasked: 'sk-...test',
-              enabled: false,
-              nextRunAt: new Date('2026-06-30T00:00:00.000Z'),
-            }),
-          ],
-        }),
-      },
-      { new: true, runValidators: true },
-    );
+    expect(findByIdAndUpdate).toHaveBeenCalledTimes(1);
+    const [updatedId, update, updateOptions] = findByIdAndUpdate.mock
+      .calls[0] as [
+      string,
+      { $set: SitePayload },
+      { new: boolean; runValidators: boolean },
+    ];
+    expect(updatedId).toBe('507f1f77bcf86cd799439011');
+    expect(update.$set.probes[0]).toMatchObject({
+      id: 'probe_existing',
+      apiKeyEncrypted: 'v1:existing-secret',
+      apiKeyMasked: 'sk-...test',
+      enabled: false,
+      nextRunAt: new Date('2026-06-30T00:00:00.000Z'),
+    });
+    expect(updateOptions).toEqual({ new: true, runValidators: true });
   });
 });

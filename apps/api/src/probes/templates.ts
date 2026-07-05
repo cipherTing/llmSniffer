@@ -17,13 +17,20 @@ export function buildProbeRequest(input: {
   return buildGeminiRequest(input);
 }
 
-export function extractToken(provider: ProbeProvider, chunk: string): string | null {
+export function extractToken(
+  provider: ProbeProvider,
+  chunk: string,
+): string | null {
   if (provider === 'OpenAI') return extractOpenAiToken(chunk);
   if (provider === 'Anthropic') return extractAnthropicToken(chunk);
   return extractGeminiToken(chunk);
 }
 
-function buildOpenAiRequest(input: { baseUrl: string; apiKey: string; modelName: string }): ProbeHttpRequest {
+function buildOpenAiRequest(input: {
+  baseUrl: string;
+  apiKey: string;
+  modelName: string;
+}): ProbeHttpRequest {
   return {
     url: `${input.baseUrl.replace(/\/$/, '')}/chat/completions`,
     init: {
@@ -42,7 +49,11 @@ function buildOpenAiRequest(input: { baseUrl: string; apiKey: string; modelName:
   };
 }
 
-function buildAnthropicRequest(input: { baseUrl: string; apiKey: string; modelName: string }): ProbeHttpRequest {
+function buildAnthropicRequest(input: {
+  baseUrl: string;
+  apiKey: string;
+  modelName: string;
+}): ProbeHttpRequest {
   return {
     url: `${input.baseUrl.replace(/\/$/, '')}/messages`,
     init: {
@@ -62,7 +73,11 @@ function buildAnthropicRequest(input: { baseUrl: string; apiKey: string; modelNa
   };
 }
 
-function buildGeminiRequest(input: { baseUrl: string; apiKey: string; modelName: string }): ProbeHttpRequest {
+function buildGeminiRequest(input: {
+  baseUrl: string;
+  apiKey: string;
+  modelName: string;
+}): ProbeHttpRequest {
   return {
     url: `${input.baseUrl.replace(/\/$/, '')}/models/${encodeURIComponent(input.modelName)}:streamGenerateContent?key=${encodeURIComponent(input.apiKey)}`,
     init: {
@@ -76,29 +91,66 @@ function buildGeminiRequest(input: { baseUrl: string; apiKey: string; modelName:
   };
 }
 
+type JsonRecord = Record<string, unknown>;
+
 function extractOpenAiToken(chunk: string) {
-  return extractJsonLineToken(chunk, (payload) => payload?.choices?.[0]?.delta?.content);
+  return extractJsonLineToken(chunk, (payload) => {
+    const choices = isRecord(payload) ? payload.choices : undefined;
+    if (!isUnknownArray(choices)) return null;
+    const firstChoice = choices[0];
+    const delta = isRecord(firstChoice) ? firstChoice.delta : undefined;
+    if (!isRecord(delta)) return null;
+    return delta.content;
+  });
 }
 
 function extractAnthropicToken(chunk: string) {
-  return extractJsonLineToken(chunk, (payload) => payload?.delta?.text);
+  return extractJsonLineToken(chunk, (payload) => {
+    const delta = isRecord(payload) ? payload.delta : undefined;
+    if (!isRecord(delta)) return null;
+    return delta.text;
+  });
 }
 
 function extractGeminiToken(chunk: string) {
-  return extractJsonLineToken(chunk, (payload) => payload?.candidates?.[0]?.content?.parts?.[0]?.text);
+  return extractJsonLineToken(chunk, (payload) => {
+    const candidates = isRecord(payload) ? payload.candidates : undefined;
+    if (!isUnknownArray(candidates)) return null;
+    const firstCandidate = candidates[0];
+    const content = isRecord(firstCandidate)
+      ? firstCandidate.content
+      : undefined;
+    const parts = isRecord(content) ? content.parts : undefined;
+    if (!isUnknownArray(parts)) return null;
+    const firstPart = parts[0];
+    if (!isRecord(firstPart)) return null;
+    return firstPart.text;
+  });
 }
 
-function extractJsonLineToken(chunk: string, pick: (payload: any) => unknown) {
+function extractJsonLineToken(
+  chunk: string,
+  pick: (payload: unknown) => unknown,
+) {
   for (const rawLine of chunk.split('\n')) {
     const line = rawLine.trim();
     if (!line || line === 'data: [DONE]') continue;
     const jsonText = line.startsWith('data:') ? line.slice(5).trim() : line;
     try {
-      const token = pick(JSON.parse(jsonText));
+      const payload: unknown = JSON.parse(jsonText);
+      const token = pick(payload);
       if (typeof token === 'string' && token.length > 0) return token;
     } catch {
       continue;
     }
   }
   return null;
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
 }

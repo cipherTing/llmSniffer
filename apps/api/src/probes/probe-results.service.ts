@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { NormalizedProbeResult } from './probe.types';
-import { ProbeResult, type ProbeResultDocument } from './schemas/probe-result.schema';
+import {
+  ProbeResult,
+  type ProbeResultDocument,
+} from './schemas/probe-result.schema';
 
 @Injectable()
 export class ProbeResultsService {

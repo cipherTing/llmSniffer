@@ -113,7 +113,9 @@ describe('SnapshotService', () => {
     };
     const redisService = { setJson: jest.fn().mockResolvedValue(undefined) };
     const snapshotModel = {
-      findOneAndUpdate: jest.fn(() => ({ exec: jest.fn().mockResolvedValue({}) })),
+      findOneAndUpdate: jest.fn(() => ({
+        exec: jest.fn().mockResolvedValue({}),
+      })),
     };
     const service = new SnapshotService(
       siteModel as never,
@@ -154,15 +156,18 @@ describe('SnapshotService', () => {
       snapshot,
       30,
     );
-    expect(snapshotModel.findOneAndUpdate).toHaveBeenCalledWith(
-      { key: 'public:relays:snapshot' },
-      expect.objectContaining({
-        $set: expect.objectContaining({
-          key: 'public:relays:snapshot',
-          snapshot,
-        }),
-      }),
-      { new: true, upsert: true, runValidators: true },
-    );
+    expect(snapshotModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+    const [filter, update, options] = snapshotModel.findOneAndUpdate.mock
+      .calls[0] as [
+      Record<string, unknown>,
+      { $set: { key: string; snapshot: typeof snapshot } },
+      { new: boolean; upsert: boolean; runValidators: boolean },
+    ];
+    expect(filter).toEqual({ key: 'public:relays:snapshot' });
+    expect(update.$set).toMatchObject({
+      key: 'public:relays:snapshot',
+      snapshot,
+    });
+    expect(options).toEqual({ new: true, upsert: true, runValidators: true });
   });
 });

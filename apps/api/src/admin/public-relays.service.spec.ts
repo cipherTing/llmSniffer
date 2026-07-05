@@ -71,6 +71,8 @@ describe('PublicRelaysService', () => {
     const snapshot = await service.getSnapshot();
 
     expect(snapshot).toBe(rebuilt);
-    expect(snapshotService.rebuildPublicRelaysSnapshot).toHaveBeenCalledTimes(1);
+    expect(snapshotService.rebuildPublicRelaysSnapshot).toHaveBeenCalledTimes(
+      1,
+    );
   });
 });

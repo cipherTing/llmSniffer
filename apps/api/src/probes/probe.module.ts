@@ -6,7 +6,9 @@ import { ProbeResult, ProbeResultSchema } from './schemas/probe-result.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: ProbeResult.name, schema: ProbeResultSchema }]),
+    MongooseModule.forFeature([
+      { name: ProbeResult.name, schema: ProbeResultSchema },
+    ]),
   ],
   providers: [ProbeResultsService, ProbeRunnerService],
   exports: [ProbeResultsService, ProbeRunnerService, MongooseModule],

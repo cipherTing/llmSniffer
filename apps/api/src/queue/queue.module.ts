@@ -12,13 +12,19 @@ const QUEUE_SET = Symbol('QUEUE_SET');
       provide: QUEUE_SET,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const connection = { url: configService.getOrThrow<string>('REDIS_URL') };
+        const connection = {
+          url: configService.getOrThrow<string>('REDIS_URL'),
+        };
         return {
           probeOpenai: new Queue(QUEUE_NAMES.probeOpenai, { connection }),
           probeAnthropic: new Queue(QUEUE_NAMES.probeAnthropic, { connection }),
           probeGemini: new Queue(QUEUE_NAMES.probeGemini, { connection }),
-          metricsAggregate: new Queue(QUEUE_NAMES.metricsAggregate, { connection }),
-          snapshotRefresh: new Queue(QUEUE_NAMES.snapshotRefresh, { connection }),
+          metricsAggregate: new Queue(QUEUE_NAMES.metricsAggregate, {
+            connection,
+          }),
+          snapshotRefresh: new Queue(QUEUE_NAMES.snapshotRefresh, {
+            connection,
+          }),
         };
       },
     },

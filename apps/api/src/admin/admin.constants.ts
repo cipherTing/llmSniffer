@@ -19,7 +19,8 @@ export const REQUEST_TEMPLATES = [
     id: 'openai-chat-basic',
     provider: 'OpenAI',
     name: 'OpenAI Chat 基础探测',
-    description: '使用 Chat Completions streaming 请求检测首 token 和完整流耗时。',
+    description:
+      '使用 Chat Completions streaming 请求检测首 token 和完整流耗时。',
   },
   {
     id: 'anthropic-message-basic',

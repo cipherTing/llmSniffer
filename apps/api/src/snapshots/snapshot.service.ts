@@ -220,11 +220,15 @@ function average(values: number[]) {
 }
 
 function minNullable(values: Array<number | null>) {
-  const numbers = values.filter((value): value is number => typeof value === 'number');
+  const numbers = values.filter(
+    (value): value is number => typeof value === 'number',
+  );
   return numbers.length > 0 ? Math.min(...numbers) : null;
 }
 
 function maxNullable(values: Array<number | null>) {
-  const numbers = values.filter((value): value is number => typeof value === 'number');
+  const numbers = values.filter(
+    (value): value is number => typeof value === 'number',
+  );
   return numbers.length > 0 ? Math.max(...numbers) : null;
 }

@@ -126,10 +126,7 @@ export class AdminSitesController {
 
   @Put(':id')
   @Header('Cache-Control', 'no-store')
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateSiteDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateSiteDto) {
     return {
       site: await this.adminSitesService.updateSite(id, dto),
     };

@@ -92,8 +92,13 @@ describe('ProbeWorker', () => {
   });
 
   it('imports SecretsModule where ProbeWorker is registered', () => {
-    const imports = Reflect.getMetadata(MODULE_METADATA.IMPORTS, AppModule);
+    const imports = Reflect.getMetadata(
+      MODULE_METADATA.IMPORTS,
+      AppModule,
+    ) as unknown;
 
+    expect(Array.isArray(imports)).toBe(true);
+    if (!Array.isArray(imports)) throw new Error('AppModule imports missing');
     expect(imports).toContain(SecretsModule);
   });
 });

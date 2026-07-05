@@ -22,19 +22,27 @@ describe('ProbeRunnerService', () => {
       providers: [ProbeRunnerService],
     }).compile();
 
-    expect(moduleRef.get(ProbeRunnerService)).toBeInstanceOf(ProbeRunnerService);
+    expect(moduleRef.get(ProbeRunnerService)).toBeInstanceOf(
+      ProbeRunnerService,
+    );
   });
 
   it('records first token latency and total latency from an OpenAI streaming response', async () => {
     const encoder = new TextEncoder();
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"pong"}}]}\n\n'));
+        controller.enqueue(
+          encoder.encode(
+            'data: {"choices":[{"delta":{"content":"pong"}}]}\n\n',
+          ),
+        );
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       },
     });
-    const fetchMock = jest.fn().mockResolvedValue(new Response(body, { status: 200 }));
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(new Response(body, { status: 200 }));
     const service = ProbeRunnerService.create({
       fetchImpl: fetchMock as never,
       now: () => new Date('2026-07-05T00:00:01.000Z'),
@@ -57,16 +65,20 @@ describe('ProbeRunnerService', () => {
       'data: [DONE]\n\n',
     ];
     let streamFinished = false;
-    const read = jest.fn(async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+    const read = jest.fn((): Promise<ReadableStreamReadResult<Uint8Array>> => {
       const chunk = chunks.shift();
       if (!chunk) {
         streamFinished = true;
-        return { done: true, value: undefined };
+        return Promise.resolve({ done: true, value: undefined });
       }
-      return { done: false, value: encoder.encode(chunk) };
+      return Promise.resolve({ done: false, value: encoder.encode(chunk) });
     });
-    const body = { getReader: () => ({ read }) } as unknown as ReadableStream<Uint8Array>;
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, body } as Response);
+    const body = {
+      getReader: () => ({ read }),
+    } as unknown as ReadableStream<Uint8Array>;
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, body });
     let nowCalls = 0;
     const service = ProbeRunnerService.create({
       fetchImpl: fetchMock as never,
@@ -87,8 +99,12 @@ describe('ProbeRunnerService', () => {
   });
 
   it('marks a 401 response as config_error without retryable status', async () => {
-    const fetchMock = jest.fn().mockResolvedValue(new Response('unauthorized', { status: 401 }));
-    const service = ProbeRunnerService.create({ fetchImpl: fetchMock as never });
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(new Response('unauthorized', { status: 401 }));
+    const service = ProbeRunnerService.create({
+      fetchImpl: fetchMock as never,
+    });
 
     const result = await service.run({
       ...probeInput,
