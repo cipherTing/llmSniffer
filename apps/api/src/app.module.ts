@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminModule } from './admin/admin.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { ProbeModule } from './probes/probe.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisModule } from './redis/redis.module';
@@ -12,6 +13,7 @@ import {
   MonitoredSite,
   MonitoredSiteSchema,
 } from './sites/schemas/monitored-site.schema';
+import { MetricsWorker } from './workers/metrics.worker';
 import { ProbeWorker } from './workers/probe.worker';
 import { SchedulerWorker } from './workers/scheduler.worker';
 
@@ -34,10 +36,11 @@ import { SchedulerWorker } from './workers/scheduler.worker';
     RedisModule,
     QueueModule,
     ProbeModule,
+    MetricsModule,
     SecretsModule,
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService, SchedulerWorker, ProbeWorker],
+  providers: [AppService, SchedulerWorker, ProbeWorker, MetricsWorker],
 })
 export class AppModule {}
