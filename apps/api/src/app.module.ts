@@ -7,6 +7,7 @@ import { AdminModule } from './admin/admin.module';
 import { ProbeModule } from './probes/probe.module';
 import { QueueModule } from './queue/queue.module';
 import { RedisModule } from './redis/redis.module';
+import { SecretsModule } from './secrets/secrets.module';
 import {
   MonitoredSite,
   MonitoredSiteSchema,
@@ -33,6 +34,7 @@ import { SchedulerWorker } from './workers/scheduler.worker';
     RedisModule,
     QueueModule,
     ProbeModule,
+    SecretsModule,
     AdminModule,
   ],
   controllers: [AppController],

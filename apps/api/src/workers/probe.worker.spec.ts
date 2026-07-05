@@ -1,7 +1,12 @@
+import { MODULE_METADATA } from '@nestjs/common/constants';
+import { AppModule } from '../app.module';
+import { SecretsModule } from '../secrets/secrets.module';
 import { ProbeWorker } from './probe.worker';
 
 describe('ProbeWorker', () => {
   it('decrypts probe key, runs probe, stores result, and enqueues metrics', async () => {
+    const previousProbeTimeoutMs = process.env.PROBE_TIMEOUT_MS;
+    process.env.PROBE_TIMEOUT_MS = '12345';
     const site = {
       _id: { toString: () => 'site-1' },
       probes: [
@@ -40,19 +45,41 @@ describe('ProbeWorker', () => {
       queues as never,
     );
 
-    await worker.processJob({
-      attemptsMade: 0,
-      data: {
-        provider: 'OpenAI',
-        siteId: 'site-1',
-        probeId: 'probe-1',
-        region: 'default',
-        scheduledAt: '2026-07-05T00:00:00.000Z',
-        bucketStart: '2026-07-05T00:00:00.000Z',
-      },
-    } as never);
+    try {
+      await worker.processJob({
+        attemptsMade: 0,
+        data: {
+          provider: 'OpenAI',
+          siteId: 'site-1',
+          probeId: 'probe-1',
+          region: 'default',
+          scheduledAt: '2026-07-05T00:00:00.000Z',
+          bucketStart: '2026-07-05T00:00:00.000Z',
+        },
+      } as never);
+    } finally {
+      if (previousProbeTimeoutMs === undefined) {
+        delete process.env.PROBE_TIMEOUT_MS;
+      } else {
+        process.env.PROBE_TIMEOUT_MS = previousProbeTimeoutMs;
+      }
+    }
 
     expect(secrets.decrypt).toHaveBeenCalledWith('encrypted');
+    expect(runner.run).toHaveBeenCalledWith({
+      siteId: 'site-1',
+      probeId: 'probe-1',
+      region: 'default',
+      provider: 'OpenAI',
+      requestTemplateId: 'openai-chat-basic',
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      modelName: 'gpt-4o-mini',
+      scheduledAt: new Date('2026-07-05T00:00:00.000Z'),
+      bucketStart: new Date('2026-07-05T00:00:00.000Z'),
+      attempt: 1,
+      timeoutMs: 12345,
+    });
     expect(results.upsertResult).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'ok' }),
     );
@@ -62,5 +89,11 @@ describe('ProbeWorker', () => {
       region: 'default',
       bucketStart: '2026-07-05T00:00:00.000Z',
     });
+  });
+
+  it('imports SecretsModule where ProbeWorker is registered', () => {
+    const imports = Reflect.getMetadata(MODULE_METADATA.IMPORTS, AppModule);
+
+    expect(imports).toContain(SecretsModule);
   });
 });
