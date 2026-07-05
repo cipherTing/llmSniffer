@@ -25,6 +25,15 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Probe Semantics
+
+- Probes call real model streaming endpoints.
+- A probe succeeds only after at least one streamed token is received.
+- Workers continue reading the full stream after the first token and record total latency.
+- `firstTokenLatencyMs` is used for user-facing latency summaries.
+- `totalLatencyMs` is stored for diagnostics and future analysis.
+- Raw `ProbeResult` documents are retained long-term.
+
 ## Project setup
 
 ```bash
