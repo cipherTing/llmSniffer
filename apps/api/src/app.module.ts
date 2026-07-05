@@ -4,6 +4,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminModule } from './admin/admin.module';
+import { ProbeModule } from './probes/probe.module';
+import { QueueModule } from './queue/queue.module';
 import { RedisModule } from './redis/redis.module';
 
 @Module({
@@ -20,6 +22,8 @@ import { RedisModule } from './redis/redis.module';
       }),
     }),
     RedisModule,
+    QueueModule,
+    ProbeModule,
     AdminModule,
   ],
   controllers: [AppController],
