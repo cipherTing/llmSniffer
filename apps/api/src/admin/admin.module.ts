@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { SecretsModule } from '../secrets/secrets.module';
+import { SnapshotModule } from '../snapshots/snapshot.module';
 import { AdminAuthGuard } from './admin-auth.guard';
 import { AdminAuthService } from './admin-auth.service';
 import {
@@ -27,6 +28,7 @@ import { PublicRelaysService } from './public-relays.service';
 @Module({
   imports: [
     SecretsModule,
+    SnapshotModule,
     MongooseModule.forFeature([
       { name: AdminUser.name, schema: AdminUserSchema },
       { name: AdminSession.name, schema: AdminSessionSchema },

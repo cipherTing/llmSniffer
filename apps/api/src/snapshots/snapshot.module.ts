@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MetricsModule } from '../metrics/metrics.module';
 import { ProbeModule } from '../probes/probe.module';
@@ -13,7 +13,6 @@ import {
 } from './schemas/relay-snapshot.schema';
 import { SnapshotService } from './snapshot.service';
 
-@Global()
 @Module({
   imports: [
     RedisModule,
