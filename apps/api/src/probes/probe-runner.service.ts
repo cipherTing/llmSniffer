@@ -18,21 +18,34 @@ export type RunProbeInput = {
   timeoutMs: number;
 };
 
+export type ProbeRunnerRuntime = {
+  fetchImpl: typeof fetch;
+  now: () => Date;
+};
+
+const defaultRuntime: ProbeRunnerRuntime = {
+  fetchImpl: (input, init) => fetch(input, init),
+  now: () => new Date(),
+};
+
 @Injectable()
 export class ProbeRunnerService {
-  constructor(
-    private readonly fetchImpl: typeof fetch = fetch,
-    private readonly now: () => Date = () => new Date(),
-  ) {}
+  private runtime = defaultRuntime;
+
+  static create(runtime: Partial<ProbeRunnerRuntime> = {}) {
+    const service = new ProbeRunnerService();
+    service.runtime = { ...service.runtime, ...runtime };
+    return service;
+  }
 
   async run(input: RunProbeInput): Promise<NormalizedProbeResult> {
-    const startedAt = this.now();
+    const startedAt = this.runtime.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), input.timeoutMs);
 
     try {
       const request = buildProbeRequest(input);
-      const response = await this.fetchImpl(request.url, {
+      const response = await this.runtime.fetchImpl(request.url, {
         ...request.init,
         signal: controller.signal,
       });
@@ -41,7 +54,7 @@ export class ProbeRunnerService {
         return this.finish(input, startedAt, null, response.status, classifyHttpStatus(response.status), reasonForHttpStatus(response.status));
       }
 
-      const firstTokenAt = await readStreamUntilComplete(response.body, input.provider, this.now);
+      const firstTokenAt = await readStreamUntilComplete(response.body, input.provider, this.runtime.now);
       if (!firstTokenAt) {
         return this.finish(input, startedAt, null, response.status, 'down', '流式响应未返回 token');
       }
@@ -64,7 +77,7 @@ export class ProbeRunnerService {
     reason: string,
     errorCode: string | null = null,
   ): NormalizedProbeResult {
-    const finishedAt = this.now();
+    const finishedAt = this.runtime.now();
     return {
       siteId: input.siteId,
       probeId: input.probeId,
@@ -91,16 +104,55 @@ async function readStreamUntilComplete(body: ReadableStream<Uint8Array>, provide
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let firstTokenAt: Date | null = null;
+  let pendingText = '';
+  let eventLines: string[] = [];
+
+  const captureFirstToken = (hasToken: boolean) => {
+    if (hasToken && !firstTokenAt) {
+      firstTokenAt = now();
+    }
+  };
+
+  const processEvent = () => {
+    if (eventLines.length === 0) return false;
+    const eventText = eventLines.join('\n');
+    eventLines = [];
+    return Boolean(extractToken(provider, eventText));
+  };
+
+  const processLine = (line: string) => {
+    const normalizedLine = line.endsWith('\r') ? line.slice(0, -1) : line;
+    if (normalizedLine.trim() === '') {
+      return processEvent();
+    }
+    eventLines.push(normalizedLine);
+    return false;
+  };
+
+  const processText = (text: string) => {
+    pendingText += text;
+    let lineEnd = pendingText.indexOf('\n');
+
+    while (lineEnd !== -1) {
+      const line = pendingText.slice(0, lineEnd);
+      pendingText = pendingText.slice(lineEnd + 1);
+      // 流式响应可能把一行 JSON 拆到多个网络分片里，必须等完整行/事件后再解析 token。
+      captureFirstToken(processLine(line));
+      lineEnd = pendingText.indexOf('\n');
+    }
+  };
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    // 首 token 只决定成功条件；后续仍读完整个流，用于记录完整响应耗时。
-    if (!firstTokenAt && extractToken(provider, chunk)) {
-      firstTokenAt = now();
-    }
+    processText(decoder.decode(value, { stream: true }));
   }
+
+  processText(decoder.decode());
+  if (pendingText.length > 0) {
+    captureFirstToken(processLine(pendingText));
+  }
+  captureFirstToken(processEvent());
 
   return firstTokenAt;
 }
