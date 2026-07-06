@@ -2,6 +2,12 @@ import { QueueService, type SnapshotJobData } from './queue.service';
 import { QUEUE_NAMES } from './queue.constants';
 
 describe('QueueService', () => {
+  it('uses BullMQ-safe queue names', () => {
+    expect(Object.values(QUEUE_NAMES).every((name) => !name.includes(':'))).toBe(
+      true,
+    );
+  });
+
   it('routes provider probe jobs to provider queues with stable job id', async () => {
     const add = jest.fn().mockResolvedValue({ id: 'job-1' });
     const service = new QueueService({
@@ -25,11 +31,11 @@ describe('QueueService', () => {
       'run-probe',
       expect.objectContaining({ provider: 'OpenAI', siteId: 'site-1' }),
       expect.objectContaining({
-        jobId: 'probe:site-1:probe-1:default:2026-07-05T00:00:00.000Z',
+        jobId: 'probe-site-1-probe-1-default-2026-07-05T00-00-00.000Z',
         attempts: 3,
       }),
     );
-    expect(QUEUE_NAMES.probeOpenai).toBe('probe:openai');
+    expect(QUEUE_NAMES.probeOpenai).toBe('probe-openai');
   });
 
   it('removes completed snapshot jobs so later refreshes can enqueue', async () => {

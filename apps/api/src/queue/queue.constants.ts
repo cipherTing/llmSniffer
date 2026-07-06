@@ -1,9 +1,9 @@
 export const QUEUE_NAMES = {
-  probeOpenai: 'probe:openai',
-  probeAnthropic: 'probe:anthropic',
-  probeGemini: 'probe:gemini',
-  metricsAggregate: 'metrics:aggregate',
-  snapshotRefresh: 'snapshot:refresh',
+  probeOpenai: 'probe-openai',
+  probeAnthropic: 'probe-anthropic',
+  probeGemini: 'probe-gemini',
+  metricsAggregate: 'metrics-aggregate',
+  snapshotRefresh: 'snapshot-refresh',
 } as const;
 
 export const WORKER_ROLES = [

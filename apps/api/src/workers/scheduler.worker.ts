@@ -1,8 +1,10 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -13,6 +15,8 @@ import {
   type MonitoredSiteDocument,
 } from '../sites/schemas/monitored-site.schema';
 
+export const SCHEDULER_NOW = Symbol('SCHEDULER_NOW');
+
 @Injectable()
 export class SchedulerWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SchedulerWorker.name);
@@ -22,6 +26,8 @@ export class SchedulerWorker implements OnModuleInit, OnModuleDestroy {
     @InjectModel(MonitoredSite.name)
     private readonly siteModel: Model<MonitoredSiteDocument>,
     private readonly queueService: QueueService,
+    @Optional()
+    @Inject(SCHEDULER_NOW)
     private readonly now: () => Date = () => new Date(),
   ) {}
 

@@ -1,6 +1,22 @@
+import { getModelToken } from '@nestjs/mongoose';
+import { Test } from '@nestjs/testing';
+import { QueueService } from '../queue/queue.service';
+import { MonitoredSite } from '../sites/schemas/monitored-site.schema';
 import { SchedulerWorker } from './scheduler.worker';
 
 describe('SchedulerWorker', () => {
+  it('can be created by Nest without a test clock provider', async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        SchedulerWorker,
+        { provide: getModelToken(MonitoredSite.name), useValue: {} },
+        { provide: QueueService, useValue: {} },
+      ],
+    }).compile();
+
+    expect(moduleRef.get(SchedulerWorker)).toBeInstanceOf(SchedulerWorker);
+  });
+
   it('enqueues due enabled probes and advances nextRunAt', async () => {
     const save = jest.fn().mockResolvedValue(undefined);
     const site = {

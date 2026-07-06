@@ -39,7 +39,13 @@ export class QueueService {
     return queue.add('run-probe', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 30_000 },
-      jobId: `probe:${data.siteId}:${data.probeId}:${data.region}:${data.bucketStart}`,
+      jobId: safeJobId(
+        'probe',
+        data.siteId,
+        data.probeId,
+        data.region,
+        data.bucketStart,
+      ),
       removeOnComplete: { age: 86_400, count: 10_000 },
       removeOnFail: { age: 604_800, count: 50_000 },
     });
@@ -49,7 +55,13 @@ export class QueueService {
     return this.queues.metricsAggregate.add('aggregate-probe', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 10_000 },
-      jobId: `metrics:${data.siteId}:${data.probeId}:${data.region}:${data.bucketStart}`,
+      jobId: safeJobId(
+        'metrics',
+        data.siteId,
+        data.probeId,
+        data.region,
+        data.bucketStart,
+      ),
       removeOnComplete: { age: 86_400, count: 10_000 },
       removeOnFail: { age: 604_800, count: 50_000 },
     });
@@ -69,4 +81,8 @@ export class QueueService {
     if (provider === 'Anthropic') return this.queues.probeAnthropic;
     return this.queues.probeGemini;
   }
+}
+
+function safeJobId(...parts: string[]) {
+  return parts.map((part) => part.replaceAll(':', '-')).join('-');
 }
