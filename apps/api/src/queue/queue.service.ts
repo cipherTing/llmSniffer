@@ -59,7 +59,6 @@ export class QueueService {
     return this.queues.snapshotRefresh.add('refresh-snapshot', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 10_000 },
-      jobId: `snapshot:${data.reason}`,
       removeOnComplete: true,
       removeOnFail: { age: 86_400, count: 5_000 },
     });

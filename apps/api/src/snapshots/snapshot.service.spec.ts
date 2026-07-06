@@ -8,7 +8,7 @@ describe('SnapshotService', () => {
       domain: 'premium.example',
       url: 'https://premium.example',
       sponsorTier: 'premium',
-      providers: ['OpenAI', 'Gemini'],
+      providers: ['Gemini', 'OpenAI'],
       monitorIntervalSeconds: 300,
       probes: [
         {
@@ -40,6 +40,7 @@ describe('SnapshotService', () => {
       probes: [
         {
           id: 'standard-probe',
+          requestTemplateId: 'anthropic-message-basic',
           apiKeyEncrypted: 'standard-secret',
           apiKeyMasked: 'ant-***',
           modelName: 'claude-3-haiku',
@@ -135,6 +136,9 @@ describe('SnapshotService', () => {
       'stable-openai',
       'stable-gemini',
     ]);
+    expect(
+      snapshot.relays[0].channels.map((channel) => channel.provider),
+    ).toEqual(['OpenAI', 'Gemini']);
     expect(snapshot.relays[0].channels[0].trends['90m']).toEqual(trend);
     expect(snapshot.relays[0].windows['90m']).toEqual({
       uptimePercent: 99,

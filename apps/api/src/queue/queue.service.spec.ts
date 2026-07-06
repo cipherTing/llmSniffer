@@ -1,4 +1,4 @@
-import { QueueService } from './queue.service';
+import { QueueService, type SnapshotJobData } from './queue.service';
 import { QUEUE_NAMES } from './queue.constants';
 
 describe('QueueService', () => {
@@ -47,10 +47,12 @@ describe('QueueService', () => {
     expect(add).toHaveBeenCalledWith(
       'refresh-snapshot',
       { reason: 'probe-result' },
-      expect.objectContaining({
-        jobId: 'snapshot:probe-result',
-        removeOnComplete: true,
-      }),
+      expect.objectContaining({ removeOnComplete: true }),
     );
+    const calls = add.mock.calls as Array<
+      [string, SnapshotJobData, Record<string, unknown>]
+    >;
+    const options = calls[0][2];
+    expect(options).not.toHaveProperty('jobId');
   });
 });

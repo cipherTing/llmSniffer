@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { REQUEST_TEMPLATES } from '../admin/admin.constants';
 import {
   MetricBucket,
   type MetricBucketDocument,
@@ -125,9 +126,9 @@ export class SnapshotService {
       url: site.url,
       sponsorTier: site.sponsorTier,
       providers: site.providers,
-      channels: site.probes.map((probe, index) => ({
+      channels: site.probes.map((probe) => ({
         id: probe.id,
-        provider: site.providers[index % site.providers.length],
+        provider: providerForTemplate(probe.requestTemplateId),
         label: probe.modelName,
         trends: windowsForProbe(buckets, probe.id),
       })),
@@ -211,6 +212,12 @@ function statusFromProbeResult(status: string): RelayStatus {
   if (status === 'partial') return 'flaky';
   if (status === 'config_error') return 'down';
   return 'down';
+}
+
+function providerForTemplate(templateId: string) {
+  const template = REQUEST_TEMPLATES.find((item) => item.id === templateId);
+  if (!template) throw new Error(`Unknown request template: ${templateId}`);
+  return template.provider;
 }
 
 function average(values: number[]) {
