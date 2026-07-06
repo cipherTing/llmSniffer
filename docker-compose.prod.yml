@@ -27,6 +27,7 @@ services:
       ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN:?ADMIN_BOOTSTRAP_TOKEN is required}
       MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
       REDIS_URL: redis://redis:6379
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
     depends_on:
       mongo:
         condition: service_healthy

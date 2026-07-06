@@ -9,7 +9,6 @@ import {
 import {
   PUBLIC_RELAYS_SNAPSHOT_KEY,
   type RelayHealthSnapshot,
-  SnapshotService,
 } from '../snapshots/snapshot.service';
 
 @Injectable()
@@ -18,7 +17,6 @@ export class PublicRelaysService {
     private readonly redisService: RedisService,
     @InjectModel(RelaySnapshot.name)
     private readonly snapshotModel: Model<RelaySnapshotDocument>,
-    private readonly snapshotService: SnapshotService,
   ) {}
 
   async getSnapshot() {
@@ -32,6 +30,6 @@ export class PublicRelaysService {
       .exec();
     if (persisted) return persisted.snapshot as RelayHealthSnapshot;
 
-    return this.snapshotService.rebuildPublicRelaysSnapshot();
+    return { generatedAt: new Date().toISOString(), relays: [] };
   }
 }

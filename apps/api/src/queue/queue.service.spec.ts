@@ -31,4 +31,26 @@ describe('QueueService', () => {
     );
     expect(QUEUE_NAMES.probeOpenai).toBe('probe:openai');
   });
+
+  it('removes completed snapshot jobs so later refreshes can enqueue', async () => {
+    const add = jest.fn().mockResolvedValue({ id: 'snapshot-1' });
+    const service = new QueueService({
+      probeOpenai: { add: jest.fn() },
+      probeAnthropic: { add: jest.fn() },
+      probeGemini: { add: jest.fn() },
+      metricsAggregate: { add: jest.fn() },
+      snapshotRefresh: { add },
+    } as never);
+
+    await service.addSnapshotJob({ reason: 'probe-result' });
+
+    expect(add).toHaveBeenCalledWith(
+      'refresh-snapshot',
+      { reason: 'probe-result' },
+      expect.objectContaining({
+        jobId: 'snapshot:probe-result',
+        removeOnComplete: true,
+      }),
+    );
+  });
 });

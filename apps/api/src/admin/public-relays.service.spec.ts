@@ -12,7 +12,6 @@ describe('PublicRelaysService', () => {
     const service = new PublicRelaysService(
       redisService as never,
       snapshotModel as never,
-      snapshotService as never,
     );
 
     const snapshot = await service.getSnapshot();
@@ -38,7 +37,6 @@ describe('PublicRelaysService', () => {
     const service = new PublicRelaysService(
       redisService as never,
       snapshotModel as never,
-      snapshotService as never,
     );
 
     const snapshot = await service.getSnapshot();
@@ -50,29 +48,19 @@ describe('PublicRelaysService', () => {
     expect(snapshotService.rebuildPublicRelaysSnapshot).not.toHaveBeenCalled();
   });
 
-  it('rebuilds only when no cached or persisted snapshot exists', async () => {
-    const rebuilt = {
-      generatedAt: '2026-07-05T00:20:00.000Z',
-      relays: [{ id: 'site-3', channels: [] }],
-    };
+  it('returns an empty snapshot when no cached or persisted snapshot exists', async () => {
     const redisService = { getJson: jest.fn().mockResolvedValue(null) };
     const snapshotModel = {
       findOne: jest.fn(() => ({ exec: jest.fn().mockResolvedValue(null) })),
     };
-    const snapshotService = {
-      rebuildPublicRelaysSnapshot: jest.fn().mockResolvedValue(rebuilt),
-    };
     const service = new PublicRelaysService(
       redisService as never,
       snapshotModel as never,
-      snapshotService as never,
     );
 
     const snapshot = await service.getSnapshot();
 
-    expect(snapshot).toBe(rebuilt);
-    expect(snapshotService.rebuildPublicRelaysSnapshot).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(typeof snapshot.generatedAt).toBe('string');
+    expect(snapshot.relays).toEqual([]);
   });
 });

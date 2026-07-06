@@ -60,7 +60,7 @@ export class QueueService {
       attempts: 3,
       backoff: { type: 'exponential', delay: 10_000 },
       jobId: `snapshot:${data.reason}`,
-      removeOnComplete: { age: 3_600, count: 1_000 },
+      removeOnComplete: true,
       removeOnFail: { age: 86_400, count: 5_000 },
     });
   }
