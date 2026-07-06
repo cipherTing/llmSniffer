@@ -1,6 +1,6 @@
 "use client";
 
-import { App as AntApp, Button, ConfigProvider, Drawer, Form, Input, Modal, Select, Table, Tag, theme as antTheme, type FormListFieldData, type TableColumnsType } from "antd";
+import { App as AntApp, Button, Checkbox, ConfigProvider, Drawer, Form, Input, Modal, Select, Table, Tag, theme as antTheme, type FormListFieldData, type TableColumnsType } from "antd";
 import { Globe2, House, LogOut, Pencil, Plus, Shield, Trash2, UsersRound } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
@@ -28,7 +28,7 @@ type SiteFormValues = {
   sponsorTier: SponsorTier;
   monitorIntervalSeconds: number;
   providers: ProviderTag[];
-  probes: { requestTemplateId: string; baseUrl: string; apiKey: string; modelName: string }[];
+  probes: { id?: string; requestTemplateId: string; baseUrl: string; apiKey?: string; modelName: string; enabled: boolean }[];
 };
 
 const providerOptions: ProviderTag[] = ["OpenAI", "Anthropic", "Gemini"];
@@ -434,6 +434,7 @@ function defaultProbe(templates: RequestTemplate[]) {
     baseUrl: "",
     apiKey: "",
     modelName: "",
+    enabled: true,
   };
 }
 
@@ -454,10 +455,12 @@ function siteToFormValues(site: MonitoredSite): SiteFormValues {
     monitorIntervalSeconds: site.monitorIntervalSeconds,
     providers: site.providers,
     probes: site.probes.map((probe) => ({
+      id: probe.id,
       requestTemplateId: probe.requestTemplateId,
       baseUrl: probe.baseUrl,
-      apiKey: probe.apiKey,
+      apiKey: "",
       modelName: probe.modelName,
+      enabled: probe.enabled,
     })),
   };
 }
@@ -481,9 +484,17 @@ function SiteDrawer({ site, open, templates, onClose, onCreated }: { site: Monit
   async function submit(values: SiteFormValues) {
     setSubmitting(true);
     try {
+      const payload = {
+        ...values,
+        probes: values.probes.map((probe) => ({
+          ...probe,
+          apiKey: probe.apiKey?.trim() ? probe.apiKey.trim() : undefined,
+        })),
+      };
+
       await apiRequest(site ? `/api/admin/sites/${site.id}` : "/api/admin/sites", {
         method: site ? "PUT" : "POST",
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
       form.resetFields();
       onCreated();
@@ -585,14 +596,33 @@ function SiteDrawer({ site, open, templates, onClose, onCreated }: { site: Monit
                   <Form.Item label="请求模板" name={[field.name, "requestTemplateId"]} rules={[{ required: true, message: "请选择请求模板" }]}> 
                     <Select options={templates.map((template) => ({ value: template.id, label: template.name }))} />
                   </Form.Item>
+                  <Form.Item hidden name={[field.name, "id"]}>
+                    <Input />
+                  </Form.Item>
                   <Form.Item label="Base URL" name={[field.name, "baseUrl"]} rules={[{ required: true, message: "请输入 Base URL" }, { type: "url", message: "请输入 http 或 https 地址" }]}> 
                     <Input placeholder={site?.probes[index]?.baseUrl ?? "https://api.example.com/v1"} />
                   </Form.Item>
-                  <Form.Item label="密钥" name={[field.name, "apiKey"]} rules={[{ required: true, message: "请输入密钥" }]}> 
-                    <Input.Password placeholder={site?.probes[index]?.apiKey ? "沿用已保存密钥" : "sk-..."} autoComplete="off" />
+                  <Form.Item
+                    extra={site ? "留空则保持现有密钥" : undefined}
+                    label="密钥"
+                    name={[field.name, "apiKey"]}
+                    rules={[
+                      {
+                        validator: (_, value: string | undefined) => {
+                          const probeId = form.getFieldValue(["probes", field.name, "id"]);
+                          if (probeId || value?.trim()) return Promise.resolve();
+                          return Promise.reject(new Error("请输入密钥"));
+                        },
+                      },
+                    ]}
+                  > 
+                    <Input.Password placeholder={site?.probes[index]?.apiKeyMasked ? `已保存：${site.probes[index].apiKeyMasked}` : "sk-..."} autoComplete="off" />
                   </Form.Item>
                   <Form.Item label="模型名字" name={[field.name, "modelName"]} rules={[{ required: true, message: "请输入模型名字" }, { max: 120, message: "最多 120 个字符" }]}> 
                     <Input placeholder={site?.probes[index]?.modelName ?? "gpt-4o-mini"} />
+                  </Form.Item>
+                  <Form.Item name={[field.name, "enabled"]} valuePropName="checked">
+                    <Checkbox>启用探针</Checkbox>
                   </Form.Item>
                 </div>
               ))}

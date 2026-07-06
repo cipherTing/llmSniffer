@@ -27,6 +27,120 @@ services:
       ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN:?ADMIN_BOOTSTRAP_TOKEN is required}
       MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
       REDIS_URL: redis://redis:6379
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker-scheduler:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
+    environment:
+      WORKER_ROLE: scheduler
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
+      SCHEDULER_TICK_MS: ${SCHEDULER_TICK_MS:-5000}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker-probe-openai:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
+    environment:
+      WORKER_ROLE: probe-openai
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
+      PROBE_TIMEOUT_MS: ${PROBE_TIMEOUT_MS:-30000}
+      PROBE_JOB_LOCK_MS: ${PROBE_JOB_LOCK_MS:-60000}
+      PROBE_WORKER_CONCURRENCY: ${PROBE_WORKER_CONCURRENCY:-10}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker-probe-anthropic:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
+    environment:
+      WORKER_ROLE: probe-anthropic
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
+      PROBE_TIMEOUT_MS: ${PROBE_TIMEOUT_MS:-30000}
+      PROBE_JOB_LOCK_MS: ${PROBE_JOB_LOCK_MS:-60000}
+      PROBE_WORKER_CONCURRENCY: ${PROBE_WORKER_CONCURRENCY:-10}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker-probe-gemini:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
+    environment:
+      WORKER_ROLE: probe-gemini
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
+      PROBE_TIMEOUT_MS: ${PROBE_TIMEOUT_MS:-30000}
+      PROBE_JOB_LOCK_MS: ${PROBE_JOB_LOCK_MS:-60000}
+      PROBE_WORKER_CONCURRENCY: ${PROBE_WORKER_CONCURRENCY:-10}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker-metrics:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
+    environment:
+      WORKER_ROLE: metrics
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
+      METRICS_WORKER_CONCURRENCY: ${METRICS_WORKER_CONCURRENCY:-5}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker-snapshot:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
+    environment:
+      WORKER_ROLE: snapshot
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
+      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
     depends_on:
       mongo:
         condition: service_healthy

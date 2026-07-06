@@ -18,8 +18,12 @@ export type MonitoredSiteProbe = {
   id: string;
   requestTemplateId: string;
   baseUrl: string;
-  apiKey: string;
+  apiKeyMasked: string;
   modelName: string;
+  enabled: boolean;
+  region: "default";
+  nextRunAt: string;
+  lastScheduledAt?: string;
 };
 
 export type MonitoredSite = {

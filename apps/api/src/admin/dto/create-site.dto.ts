@@ -3,10 +3,12 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
+  IsBoolean,
   IsArray,
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUrl,
   Length,
@@ -24,6 +26,10 @@ import {
 } from '../admin.constants';
 
 export class SiteProbeDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsString()
   @IsIn(REQUEST_TEMPLATE_IDS)
   requestTemplateId!: string;
@@ -35,13 +41,13 @@ export class SiteProbeDto {
   @Length(8, 2048)
   baseUrl!: string;
 
+  @IsOptional()
   @IsString()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsNotEmpty()
   @Length(1, 2048)
-  apiKey!: string;
+  apiKey?: string;
 
   @IsString()
   @Transform(({ value }: { value: unknown }) =>
@@ -50,6 +56,10 @@ export class SiteProbeDto {
   @IsNotEmpty()
   @Length(1, 120)
   modelName!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
 }
 
 export class CreateSiteDto {

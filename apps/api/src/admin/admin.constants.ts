@@ -17,18 +17,22 @@ export const MONITOR_INTERVAL_OPTIONS = [
 export const REQUEST_TEMPLATES = [
   {
     id: 'openai-chat-basic',
+    provider: 'OpenAI',
     name: 'OpenAI Chat 基础探测',
-    description: '占位模板：模拟 Chat Completions 风格请求。',
+    description:
+      '使用 Chat Completions streaming 请求检测首 token 和完整流耗时。',
   },
   {
     id: 'anthropic-message-basic',
+    provider: 'Anthropic',
     name: 'Anthropic Messages 基础探测',
-    description: '占位模板：模拟 Claude Messages 风格请求。',
+    description: '使用 Messages streaming 请求检测首 token 和完整流耗时。',
   },
   {
     id: 'gemini-generate-basic',
+    provider: 'Gemini',
     name: 'Gemini Generate 基础探测',
-    description: '占位模板：模拟 Gemini generateContent 风格请求。',
+    description: '使用 Gemini streaming 请求检测首 token 和完整流耗时。',
   },
 ] as const;
 

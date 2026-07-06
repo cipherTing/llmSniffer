@@ -184,6 +184,16 @@ npm run dev:down
 | `npm run build` | 构建所有 workspace |
 | `npm run test` | 运行 API 测试 |
 
+本地单独启动 Worker：
+
+```bash
+WORKER_ROLE=scheduler npm run start:worker:dev --workspace api
+WORKER_ROLE=probe-openai npm run start:worker:dev --workspace api
+WORKER_ROLE=metrics npm run start:worker:dev --workspace api
+WORKER_ROLE=snapshot npm run start:worker:dev --workspace api
+docker compose -f docker-compose.dev.yml --profile workers up -d
+```
+
 ## 生产部署
 
 构建并启动生产环境：

@@ -38,4 +38,26 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
     return this.client.ping();
   }
+
+  async getJson<T>(key: string): Promise<T | null> {
+    if (!this.client?.isReady) {
+      throw new Error('Redis client is not ready');
+    }
+
+    const value = await this.client.get(key);
+    return value ? (JSON.parse(value) as T) : null;
+  }
+
+  async setJson(key: string, value: unknown, ttlSeconds?: number) {
+    if (!this.client?.isReady) {
+      throw new Error('Redis client is not ready');
+    }
+
+    const payload = JSON.stringify(value);
+    if (ttlSeconds) {
+      await this.client.set(key, payload, { EX: ttlSeconds });
+      return;
+    }
+    await this.client.set(key, payload);
+  }
 }
