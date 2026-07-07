@@ -20,7 +20,7 @@ import type { ProviderTag, SponsorTier } from "@/lib/monitoring-types";
 import { ThemeToggle } from "../dashboard/theme-toggle";
 
 type AdminMode = "loading" | "bootstrap" | "login" | "dashboard";
-type AdminSection = "sites" | "admins";
+type AdminSection = "sites" | "templates" | "admins";
 
 type SiteFormValues = {
   name: string;
@@ -248,6 +248,7 @@ function AdminDashboard({ admin, onLogout }: { admin: AdminUser; onLogout: () =>
           </div>
           <nav className="admin-nav">
             <AdminNavItem active={section === "sites"} icon={<Globe2 size={15} />} label="收录网站" onClick={() => setSection("sites")} />
+            <AdminNavItem active={section === "templates"} icon={<Shield size={15} />} label="探针模板" onClick={() => setSection("templates")} />
             {admin.role === "system" ? (
               <AdminNavItem active={section === "admins"} icon={<UsersRound size={15} />} label="管理员" onClick={() => setSection("admins")} />
             ) : null}
@@ -271,6 +272,7 @@ function AdminDashboard({ admin, onLogout }: { admin: AdminUser; onLogout: () =>
       </aside>
       <section className="admin-workspace min-w-0">
         {section === "sites" ? <SitesPanel /> : null}
+        {section === "templates" ? <TemplatesPanel /> : null}
         {section === "admins" && admin.role === "system" ? <AdminsPanel currentAdmin={admin} /> : null}
       </section>
     </div>
@@ -378,6 +380,73 @@ function SitesPanel() {
           setSitesReloadKey((key) => key + 1);
         }}
       />
+    </div>
+  );
+}
+
+function TemplatesPanel() {
+  const { message: toast } = AntApp.useApp();
+  const [templates, setTemplates] = useState<RequestTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadTemplates() {
+      setLoading(true);
+      try {
+        const response = await apiRequest<RequestTemplatesResponse>("/api/admin/request-templates");
+        setTemplates(response.templates);
+      } catch (requestError) {
+        void toast.error(requestError instanceof Error ? requestError.message : "加载探针模板失败");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadTemplates();
+  }, [toast]);
+
+  return (
+    <div>
+      <AdminSectionHeader
+        title="探针模板"
+        description="查看实际用于探测第三方 AI 中转站的请求模板和 curl 示例。"
+      />
+      <ProbeTemplatesPanel loading={loading} templates={templates} />
+    </div>
+  );
+}
+
+function ProbeTemplatesPanel({ templates, loading }: { templates: RequestTemplate[]; loading: boolean }) {
+  const columns: TableColumnsType<RequestTemplate> = [
+    {
+      title: "模板",
+      dataIndex: "name",
+      width: 240,
+      render: (_, template) => (
+        <div>
+          <div className="text-sm font-semibold text-[var(--text)]">{template.name}</div>
+          <div className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{template.description}</div>
+        </div>
+      ),
+    },
+    {
+      title: "厂商",
+      dataIndex: "provider",
+      width: 130,
+      render: (provider: ProviderTag) => <ProviderTags providers={[provider]} />,
+    },
+    {
+      title: "请求内容",
+      dataIndex: "curl",
+      render: (curl: string) => (
+        <pre className="admin-code-block"><code>{curl}</code></pre>
+      ),
+    },
+  ];
+
+  return (
+    <div className="admin-table-shell">
+      <Table columns={columns} dataSource={templates} loading={{ spinning: loading, description: "正在加载探针模板" }} pagination={false} rowKey="id" size="small" tableLayout="fixed" />
     </div>
   );
 }
@@ -530,11 +599,11 @@ function SiteDrawer({ site, open, templates, onClose, onCreated }: { site: Monit
   }
 
   return (
-    <Drawer className="admin-drawer" destroyOnHidden maskClosable onClose={onClose} open={open} size="large" title={site ? "编辑收录网站" : "新增收录网站"}>
+    <Drawer className="admin-drawer" destroyOnHidden mask={{ closable: true }} onClose={onClose} open={open} size="large" title={site ? "编辑收录网站" : "新增收录网站"}>
       <Modal
         cancelText="取消"
         confirmLoading={deleting}
-        maskClosable
+        mask={{ closable: true }}
         okButtonProps={{ danger: true, disabled: deleteConfirmText !== deleteConfirmPhrase }}
         okText="删除"
         onCancel={() => setDeleteConfirmOpen(false)}
@@ -723,7 +792,7 @@ function AdminsPanel({ currentAdmin }: { currentAdmin: AdminUser }) {
               modal.confirm({
                 title: `删除管理员 ${admin.username}？`,
                 content: "删除后该管理员的登录态会立即失效。",
-                maskClosable: true,
+                mask: { closable: true },
                 okText: "删除",
                 okButtonProps: { danger: true },
                 cancelText: "取消",

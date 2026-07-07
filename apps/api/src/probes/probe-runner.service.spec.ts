@@ -5,7 +5,6 @@ const probeInput = {
   siteId: 'site-1',
   probeId: 'probe-1',
   region: 'default' as const,
-  provider: 'OpenAI' as const,
   requestTemplateId: 'openai-chat-basic',
   baseUrl: 'https://api.example.com/v1',
   apiKey: 'sk-test',
@@ -51,6 +50,7 @@ describe('ProbeRunnerService', () => {
     const result = await service.run(probeInput);
 
     expect(result.status).toBe('ok');
+    expect(result.provider).toBe('OpenAI');
     expect(result.firstTokenLatencyMs).toBeGreaterThanOrEqual(0);
     expect(result.totalLatencyMs).toBeGreaterThanOrEqual(0);
     expect(result.reason).toBe('收到首个 token');
@@ -114,5 +114,37 @@ describe('ProbeRunnerService', () => {
     expect(result.status).toBe('config_error');
     expect(result.httpStatus).toBe(401);
     expect(result.firstTokenLatencyMs).toBeNull();
+  });
+
+  it('builds OpenAI Responses requests from the request template', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'data: {"type":"response.output_text.delta","delta":"pong"}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(new Response(body, { status: 200 }));
+    const service = ProbeRunnerService.create({ fetchImpl: fetchMock as never });
+
+    const result = await service.run({
+      ...probeInput,
+      requestTemplateId: 'openai-responses-basic',
+    });
+
+    expect(result.status).toBe('ok');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/v1/responses',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('max_output_tokens'),
+      }),
+    );
   });
 });

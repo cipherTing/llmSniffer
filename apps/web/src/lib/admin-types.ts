@@ -10,8 +10,10 @@ export type AdminUser = {
 
 export type RequestTemplate = {
   id: string;
+  provider: ProviderTag;
   name: string;
   description: string;
+  curl: string;
 };
 
 export type MonitoredSiteProbe = {

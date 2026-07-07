@@ -8,18 +8,15 @@ describe('QueueService', () => {
     );
   });
 
-  it('routes provider probe jobs to provider queues with stable job id', async () => {
+  it('enqueues probe jobs into the unified probe queue with stable job id', async () => {
     const add = jest.fn().mockResolvedValue({ id: 'job-1' });
-    const service = new QueueService({
-      probeOpenai: { add },
-      probeAnthropic: { add: jest.fn() },
-      probeGemini: { add: jest.fn() },
-      metricsAggregate: { add: jest.fn() },
-      snapshotRefresh: { add: jest.fn() },
-    } as never);
+    const service = new QueueService(
+      { add } as never,
+      { add: jest.fn() } as never,
+      { add: jest.fn() } as never,
+    );
 
     await service.addProbeJob({
-      provider: 'OpenAI',
       siteId: 'site-1',
       probeId: 'probe-1',
       region: 'default',
@@ -29,24 +26,24 @@ describe('QueueService', () => {
 
     expect(add).toHaveBeenCalledWith(
       'run-probe',
-      expect.objectContaining({ provider: 'OpenAI', siteId: 'site-1' }),
+      expect.objectContaining({
+        siteId: 'site-1',
+      }),
       expect.objectContaining({
         jobId: 'probe-site-1-probe-1-default-2026-07-05T00-00-00.000Z',
         attempts: 3,
       }),
     );
-    expect(QUEUE_NAMES.probeOpenai).toBe('probe-openai');
+    expect(QUEUE_NAMES.probe).toBe('probe');
   });
 
   it('removes completed snapshot jobs so later refreshes can enqueue', async () => {
     const add = jest.fn().mockResolvedValue({ id: 'snapshot-1' });
-    const service = new QueueService({
-      probeOpenai: { add: jest.fn() },
-      probeAnthropic: { add: jest.fn() },
-      probeGemini: { add: jest.fn() },
-      metricsAggregate: { add: jest.fn() },
-      snapshotRefresh: { add },
-    } as never);
+    const service = new QueueService(
+      { add: jest.fn() } as never,
+      { add: jest.fn() } as never,
+      { add } as never,
+    );
 
     await service.addSnapshotJob({ reason: 'probe-result' });
 

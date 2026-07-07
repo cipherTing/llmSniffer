@@ -14,10 +14,12 @@ import {
   MonitoredSite,
   MonitoredSiteSchema,
 } from './sites/schemas/monitored-site.schema';
-import { MetricsWorker } from './workers/metrics.worker';
-import { ProbeWorker } from './workers/probe.worker';
+import { MetricsProcessor, MetricsWorker } from './workers/metrics.worker';
+import { ProbeProcessor, ProbeWorker } from './workers/probe.worker';
 import { SchedulerWorker } from './workers/scheduler.worker';
-import { SnapshotWorker } from './workers/snapshot.worker';
+import { SnapshotProcessor, SnapshotWorker } from './workers/snapshot.worker';
+
+const WORKER_PROVIDERS = workerProvidersForRole(process.env.WORKER_ROLE);
 
 @Module({
   imports: [
@@ -44,12 +46,14 @@ import { SnapshotWorker } from './workers/snapshot.worker';
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    SchedulerWorker,
-    ProbeWorker,
-    MetricsWorker,
-    SnapshotWorker,
-  ],
+  providers: [AppService, ...WORKER_PROVIDERS],
 })
 export class AppModule {}
+
+function workerProvidersForRole(role: string | undefined) {
+  if (role === 'scheduler') return [SchedulerWorker];
+  if (role === 'probe') return [ProbeWorker, ProbeProcessor];
+  if (role === 'metrics') return [MetricsWorker, MetricsProcessor];
+  if (role === 'snapshot') return [SnapshotWorker, SnapshotProcessor];
+  return [];
+}

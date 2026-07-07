@@ -120,8 +120,9 @@ export class AdminSitesService {
       monitorIntervalSeconds: dto.monitorIntervalSeconds,
       providers: dto.providers,
       probes: dto.probes.map((probe) => {
-        const existingProbe = probe.id
-          ? existingProbes.get(probe.id)
+        const probeId = probe.id?.trim() || undefined;
+        const existingProbe = probeId
+          ? existingProbes.get(probeId)
           : undefined;
         const apiKey = probe.apiKey?.trim();
 
@@ -130,7 +131,7 @@ export class AdminSitesService {
         }
 
         return {
-          id: probe.id ?? newProbeId(),
+          id: probeId ?? newProbeId(),
           requestTemplateId: probe.requestTemplateId,
           baseUrl: normalizeUrl(probe.baseUrl),
           apiKeyEncrypted: apiKey

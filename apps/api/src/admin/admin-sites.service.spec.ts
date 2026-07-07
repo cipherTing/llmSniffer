@@ -199,4 +199,37 @@ describe('AdminSitesService', () => {
     });
     expect(updateOptions).toEqual({ new: true, runValidators: true });
   });
+
+  it('generates a probe id when the client submits an empty id', async () => {
+    const create = jest.fn((payload: Record<string, unknown>) => ({
+      ...payload,
+      _id: { toString: () => 'site-2' },
+      createdAt: new Date('2026-06-30T00:00:00.000Z'),
+      updatedAt: new Date('2026-06-30T00:00:00.000Z'),
+    }));
+    const service = new AdminSitesService({ create } as never, secretsService);
+
+    await service.createSite(
+      {
+        name: 'Relay With Empty Probe Id',
+        url: 'https://empty-probe-id.example',
+        sponsorTier: 'standard',
+        monitorIntervalSeconds: 300,
+        providers: ['OpenAI'],
+        probes: [
+          {
+            id: '',
+            requestTemplateId: 'openai-chat-basic',
+            baseUrl: 'https://api.example.com/v1',
+            apiKey: 'sk-openai-test',
+            modelName: 'gpt-4o-mini',
+          },
+        ],
+      },
+      { id: 'admin-1', username: 'root', role: 'system' },
+    );
+
+    const createdPayload = create.mock.calls[0][0] as SitePayload;
+    expect(createdPayload.probes[0].id).toMatch(/^probe_/);
+  });
 });

@@ -1,32 +1,28 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Worker } from 'bullmq';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Injectable } from '@nestjs/common';
+import type { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue/queue.constants';
 import type { SnapshotJobData } from '../queue/queue.service';
 import { SnapshotService } from '../snapshots/snapshot.service';
 
 @Injectable()
-export class SnapshotWorker implements OnModuleInit, OnModuleDestroy {
-  private worker: Worker<SnapshotJobData> | null = null;
-
+export class SnapshotWorker {
   constructor(
     private readonly snapshotService: SnapshotService,
-    private readonly configService: ConfigService,
   ) {}
 
-  onModuleInit() {
-    if (process.env.WORKER_ROLE !== 'snapshot') return;
-    this.worker = new Worker<SnapshotJobData>(
-      QUEUE_NAMES.snapshotRefresh,
-      () => this.snapshotService.rebuildPublicRelaysSnapshot(),
-      {
-        connection: { url: this.configService.getOrThrow<string>('REDIS_URL') },
-        concurrency: 1,
-      },
-    );
+  async processJob(_job: Job<SnapshotJobData>) {
+    await this.snapshotService.rebuildPublicRelaysSnapshot();
+  }
+}
+
+@Processor(QUEUE_NAMES.snapshotRefresh, { concurrency: 1 })
+export class SnapshotProcessor extends WorkerHost {
+  constructor(private readonly snapshotWorker: SnapshotWorker) {
+    super();
   }
 
-  async onModuleDestroy() {
-    await this.worker?.close();
+  async process(job: Job<SnapshotJobData>) {
+    await this.snapshotWorker.processJob(job);
   }
 }

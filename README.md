@@ -188,7 +188,7 @@ npm run dev:down
 
 ```bash
 WORKER_ROLE=scheduler npm run start:worker:dev --workspace api
-WORKER_ROLE=probe-openai npm run start:worker:dev --workspace api
+WORKER_ROLE=probe npm run start:worker:dev --workspace api
 WORKER_ROLE=metrics npm run start:worker:dev --workspace api
 WORKER_ROLE=snapshot npm run start:worker:dev --workspace api
 docker compose -f docker-compose.dev.yml --profile workers up -d

@@ -1,40 +1,26 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
-import { Queue } from 'bullmq';
 import { QUEUE_NAMES } from './queue.constants';
 import { QueueService } from './queue.service';
 
-const QUEUE_SET = Symbol('QUEUE_SET');
-
 @Module({
-  providers: [
-    {
-      provide: QUEUE_SET,
+  imports: [
+    BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const connection = {
+      useFactory: (configService: ConfigService) => ({
+        connection: {
           url: configService.getOrThrow<string>('REDIS_URL'),
-        };
-        return {
-          probeOpenai: new Queue(QUEUE_NAMES.probeOpenai, { connection }),
-          probeAnthropic: new Queue(QUEUE_NAMES.probeAnthropic, { connection }),
-          probeGemini: new Queue(QUEUE_NAMES.probeGemini, { connection }),
-          metricsAggregate: new Queue(QUEUE_NAMES.metricsAggregate, {
-            connection,
-          }),
-          snapshotRefresh: new Queue(QUEUE_NAMES.snapshotRefresh, {
-            connection,
-          }),
-        };
-      },
-    },
-    {
-      provide: QueueService,
-      inject: [QUEUE_SET],
-      useFactory: (queues: ConstructorParameters<typeof QueueService>[0]) =>
-        new QueueService(queues),
-    },
+        },
+      }),
+    }),
+    BullModule.registerQueue(
+      { name: QUEUE_NAMES.probe },
+      { name: QUEUE_NAMES.metricsAggregate },
+      { name: QUEUE_NAMES.snapshotRefresh },
+    ),
   ],
-  exports: [QueueService],
+  providers: [QueueService],
+  exports: [QueueService, BullModule],
 })
 export class QueueModule {}

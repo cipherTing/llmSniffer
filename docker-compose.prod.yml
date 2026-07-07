@@ -52,54 +52,14 @@ services:
       redis:
         condition: service_healthy
 
-  worker-probe-openai:
+  worker-probe:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
     environment:
-      WORKER_ROLE: probe-openai
-      REDIS_URL: redis://redis:6379
-      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
-      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
-      PROBE_TIMEOUT_MS: ${PROBE_TIMEOUT_MS:-30000}
-      PROBE_JOB_LOCK_MS: ${PROBE_JOB_LOCK_MS:-60000}
-      PROBE_WORKER_CONCURRENCY: ${PROBE_WORKER_CONCURRENCY:-10}
-    depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  worker-probe-anthropic:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    restart: unless-stopped
-    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
-    environment:
-      WORKER_ROLE: probe-anthropic
-      REDIS_URL: redis://redis:6379
-      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
-      PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
-      PROBE_TIMEOUT_MS: ${PROBE_TIMEOUT_MS:-30000}
-      PROBE_JOB_LOCK_MS: ${PROBE_JOB_LOCK_MS:-60000}
-      PROBE_WORKER_CONCURRENCY: ${PROBE_WORKER_CONCURRENCY:-10}
-    depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  worker-probe-gemini:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    restart: unless-stopped
-    command: ["npm", "run", "start:worker:prod", "--workspace", "api"]
-    environment:
-      WORKER_ROLE: probe-gemini
+      WORKER_ROLE: probe
       REDIS_URL: redis://redis:6379
       MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-llmsniffer}:${MONGO_INITDB_ROOT_PASSWORD:-llmsniffer_dev_password}@mongo:27017/${MONGO_DATABASE:-llmsniffer}?authSource=admin
       PROBE_SECRET_KEY: ${PROBE_SECRET_KEY:?PROBE_SECRET_KEY is required}
