@@ -49,7 +49,6 @@ describe('ProbeWorker', () => {
       await worker.processJob({
         attemptsMade: 0,
         data: {
-          provider: 'OpenAI',
           siteId: 'site-1',
           probeId: 'probe-1',
           region: 'default',
@@ -70,7 +69,6 @@ describe('ProbeWorker', () => {
       siteId: 'site-1',
       probeId: 'probe-1',
       region: 'default',
-      provider: 'OpenAI',
       requestTemplateId: 'openai-chat-basic',
       baseUrl: 'https://api.example.com/v1',
       apiKey: 'sk-test',

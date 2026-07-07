@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { REQUEST_TEMPLATES, type ProviderTag } from '../admin/admin.constants';
 import { QueueService } from '../queue/queue.service';
 import {
   MonitoredSite,
@@ -60,10 +59,8 @@ export class SchedulerWorker implements OnModuleInit, OnModuleDestroy {
           continue;
         }
 
-        const provider = providerForTemplate(probe.requestTemplateId);
         const bucketStart = probe.nextRunAt.toISOString();
         await this.queueService.addProbeJob({
-          provider,
           siteId: site._id.toString(),
           probeId: probe.id,
           region: probe.region,
@@ -82,11 +79,4 @@ export class SchedulerWorker implements OnModuleInit, OnModuleDestroy {
       if (changed) await site.save();
     }
   }
-}
-
-function providerForTemplate(templateId: string): ProviderTag {
-  const template = REQUEST_TEMPLATES.find((item) => item.id === templateId);
-  if (!template) throw new Error(`Unknown request template: ${templateId}`);
-
-  return template.provider;
 }

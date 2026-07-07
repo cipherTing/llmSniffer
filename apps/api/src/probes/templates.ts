@@ -1,99 +1,220 @@
-import type { ProbeProvider } from '../queue/queue.constants';
+import type { ProviderTag } from '../admin/admin.constants';
 
 export type ProbeHttpRequest = {
   url: string;
   init: RequestInit;
 };
 
+export type ProbeTemplate = {
+  id: string;
+  provider: ProviderTag;
+  name: string;
+  description: string;
+  request: {
+    method: 'POST';
+    path: string;
+    query?: Record<string, string>;
+    headers: Record<string, string>;
+    body: Record<string, unknown>;
+  };
+  tokenExtractor: 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini';
+};
+
+const REQUEST_BODY_PROMPT = 'Reply with pong.';
+
+// 请求模板只描述 HTTP 请求形状；密钥、模型名等变量在实际探测时再渲染进去。
+export const PROBE_TEMPLATES: ProbeTemplate[] = [
+  {
+    id: 'openai-chat-basic',
+    provider: 'OpenAI',
+    name: 'OpenAI Chat 基础探测',
+    description: '使用 Chat Completions streaming 请求检测首 token 和完整流耗时。',
+    request: {
+      method: 'POST',
+      path: '/chat/completions',
+      headers: {
+        Authorization: 'Bearer {{API_KEY}}',
+        'Content-Type': 'application/json',
+      },
+      body: {
+        model: '{{MODEL}}',
+        stream: true,
+        max_tokens: 8,
+        messages: [{ role: 'user', content: REQUEST_BODY_PROMPT }],
+      },
+    },
+    tokenExtractor: 'openai-chat',
+  },
+  {
+    id: 'openai-responses-basic',
+    provider: 'OpenAI',
+    name: 'OpenAI Responses 基础探测',
+    description: '使用 Responses streaming 请求检测首 token 和完整流耗时。',
+    request: {
+      method: 'POST',
+      path: '/responses',
+      headers: {
+        Authorization: 'Bearer {{API_KEY}}',
+        'Content-Type': 'application/json',
+      },
+      body: {
+        model: '{{MODEL}}',
+        stream: true,
+        max_output_tokens: 8,
+        input: REQUEST_BODY_PROMPT,
+      },
+    },
+    tokenExtractor: 'openai-responses',
+  },
+  {
+    id: 'anthropic-message-basic',
+    provider: 'Anthropic',
+    name: 'Anthropic Messages 基础探测',
+    description: '使用 Messages streaming 请求检测首 token 和完整流耗时。',
+    request: {
+      method: 'POST',
+      path: '/messages',
+      headers: {
+        'x-api-key': '{{API_KEY}}',
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: {
+        model: '{{MODEL}}',
+        stream: true,
+        max_tokens: 8,
+        messages: [{ role: 'user', content: REQUEST_BODY_PROMPT }],
+      },
+    },
+    tokenExtractor: 'anthropic',
+  },
+  {
+    id: 'gemini-generate-basic',
+    provider: 'Gemini',
+    name: 'Gemini Generate 基础探测',
+    description: '使用 Gemini streaming 请求检测首 token 和完整流耗时。',
+    request: {
+      method: 'POST',
+      path: '/models/{{MODEL}}:streamGenerateContent',
+      query: { key: '{{API_KEY}}' },
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        contents: [{ role: 'user', parts: [{ text: REQUEST_BODY_PROMPT }] }],
+        generationConfig: { maxOutputTokens: 8 },
+      },
+    },
+    tokenExtractor: 'gemini',
+  },
+];
+
 export function buildProbeRequest(input: {
-  provider: ProbeProvider;
   requestTemplateId: string;
   baseUrl: string;
   apiKey: string;
   modelName: string;
 }): ProbeHttpRequest {
-  if (input.provider === 'OpenAI') return buildOpenAiRequest(input);
-  if (input.provider === 'Anthropic') return buildAnthropicRequest(input);
-  return buildGeminiRequest(input);
+  const template = getProbeTemplate(input.requestTemplateId);
+  const variables = templateVariables(input);
+  const url = buildTemplateUrl(input.baseUrl, template, variables);
+
+  return {
+    url,
+    init: {
+      method: template.request.method,
+      headers: renderTemplateValue(template.request.headers, variables) as Record<
+        string,
+        string
+      >,
+      body: JSON.stringify(renderTemplateValue(template.request.body, variables)),
+    },
+  };
 }
 
 export function extractToken(
-  provider: ProbeProvider,
+  requestTemplateId: string,
   chunk: string,
 ): string | null {
-  if (provider === 'OpenAI') return extractOpenAiToken(chunk);
-  if (provider === 'Anthropic') return extractAnthropicToken(chunk);
+  const template = getProbeTemplate(requestTemplateId);
+  if (template.tokenExtractor === 'openai-chat') {
+    return extractOpenAiChatToken(chunk);
+  }
+  if (template.tokenExtractor === 'openai-responses') {
+    return extractOpenAiResponsesToken(chunk);
+  }
+  if (template.tokenExtractor === 'anthropic') return extractAnthropicToken(chunk);
   return extractGeminiToken(chunk);
 }
 
-function buildOpenAiRequest(input: {
-  baseUrl: string;
-  apiKey: string;
-  modelName: string;
-}): ProbeHttpRequest {
+export function providerForProbeTemplate(requestTemplateId: string) {
+  return getProbeTemplate(requestTemplateId).provider;
+}
+
+function getProbeTemplate(requestTemplateId: string) {
+  const template = PROBE_TEMPLATES.find((item) => item.id === requestTemplateId);
+  if (!template) throw new Error(`Unknown request template: ${requestTemplateId}`);
+  return template;
+}
+
+function templateVariables(input: { apiKey: string; modelName: string }) {
   return {
-    url: `${input.baseUrl.replace(/\/$/, '')}/chat/completions`,
-    init: {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${input.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: input.modelName,
-        stream: true,
-        max_tokens: 8,
-        messages: [{ role: 'user', content: 'Reply with pong.' }],
-      }),
-    },
+    API_KEY: input.apiKey,
+    MODEL: input.modelName,
   };
 }
 
-function buildAnthropicRequest(input: {
-  baseUrl: string;
-  apiKey: string;
-  modelName: string;
-}): ProbeHttpRequest {
-  return {
-    url: `${input.baseUrl.replace(/\/$/, '')}/messages`,
-    init: {
-      method: 'POST',
-      headers: {
-        'x-api-key': input.apiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: input.modelName,
-        stream: true,
-        max_tokens: 8,
-        messages: [{ role: 'user', content: 'Reply with pong.' }],
-      }),
-    },
-  };
+function buildTemplateUrl(
+  baseUrl: string,
+  template: ProbeTemplate,
+  variables: Record<string, string>,
+) {
+  const renderedPath = renderTemplateString(template.request.path, variables);
+  const url = new URL(
+    `${baseUrl.replace(/\/$/, '')}/${renderedPath.replace(/^\//, '')}`,
+  );
+  const renderedQuery = renderTemplateValue(
+    template.request.query ?? {},
+    variables,
+  ) as Record<string, string>;
+
+  for (const [key, value] of Object.entries(renderedQuery)) {
+    url.searchParams.set(key, value);
+  }
+
+  return url.toString();
 }
 
-function buildGeminiRequest(input: {
-  baseUrl: string;
-  apiKey: string;
-  modelName: string;
-}): ProbeHttpRequest {
-  return {
-    url: `${input.baseUrl.replace(/\/$/, '')}/models/${encodeURIComponent(input.modelName)}:streamGenerateContent?key=${encodeURIComponent(input.apiKey)}`,
-    init: {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: 'Reply with pong.' }] }],
-        generationConfig: { maxOutputTokens: 8 },
-      }),
-    },
-  };
+function renderTemplateValue(
+  value: unknown,
+  variables: Record<string, string>,
+): unknown {
+  if (typeof value === 'string') return renderTemplateString(value, variables);
+  if (Array.isArray(value)) {
+    return value.map((item) => renderTemplateValue(item, variables));
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        renderTemplateValue(item, variables),
+      ]),
+    );
+  }
+  return value;
+}
+
+function renderTemplateString(value: string, variables: Record<string, string>) {
+  return value.replaceAll(/{{([A-Z_]+)}}/g, (_, key: string) => {
+    const variable = variables[key];
+    if (variable === undefined) {
+      throw new Error(`Unknown template variable: ${key}`);
+    }
+    return variable;
+  });
 }
 
 type JsonRecord = Record<string, unknown>;
 
-function extractOpenAiToken(chunk: string) {
+function extractOpenAiChatToken(chunk: string) {
   return extractJsonLineToken(chunk, (payload) => {
     const choices = isRecord(payload) ? payload.choices : undefined;
     if (!isUnknownArray(choices)) return null;
@@ -101,6 +222,14 @@ function extractOpenAiToken(chunk: string) {
     const delta = isRecord(firstChoice) ? firstChoice.delta : undefined;
     if (!isRecord(delta)) return null;
     return delta.content;
+  });
+}
+
+function extractOpenAiResponsesToken(chunk: string) {
+  return extractJsonLineToken(chunk, (payload) => {
+    if (!isRecord(payload)) return null;
+    if (payload.type !== 'response.output_text.delta') return null;
+    return payload.delta;
   });
 }
 

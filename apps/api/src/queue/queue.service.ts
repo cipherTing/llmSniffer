@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Queue } from 'bullmq';
-import type { ProbeProvider, ProbeRegion } from './queue.constants';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
+import { QUEUE_NAMES, type ProbeRegion } from './queue.constants';
 
 export type ProbeJobData = {
-  provider: ProbeProvider;
   siteId: string;
   probeId: string;
   region: ProbeRegion;
@@ -22,21 +22,19 @@ export type SnapshotJobData = {
   reason: 'probe-result' | 'manual-refresh';
 };
 
-type QueueSet = {
-  probeOpenai: Queue<ProbeJobData>;
-  probeAnthropic: Queue<ProbeJobData>;
-  probeGemini: Queue<ProbeJobData>;
-  metricsAggregate: Queue<MetricsJobData>;
-  snapshotRefresh: Queue<SnapshotJobData>;
-};
-
 @Injectable()
 export class QueueService {
-  constructor(private readonly queues: QueueSet) {}
+  constructor(
+    @InjectQueue(QUEUE_NAMES.probe)
+    private readonly probeQueue: Queue<ProbeJobData>,
+    @InjectQueue(QUEUE_NAMES.metricsAggregate)
+    private readonly metricsAggregateQueue: Queue<MetricsJobData>,
+    @InjectQueue(QUEUE_NAMES.snapshotRefresh)
+    private readonly snapshotRefreshQueue: Queue<SnapshotJobData>,
+  ) {}
 
   async addProbeJob(data: ProbeJobData) {
-    const queue = this.providerQueue(data.provider);
-    return queue.add('run-probe', data, {
+    return this.probeQueue.add('run-probe', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 30_000 },
       jobId: safeJobId(
@@ -52,7 +50,7 @@ export class QueueService {
   }
 
   async addMetricsJob(data: MetricsJobData) {
-    return this.queues.metricsAggregate.add('aggregate-probe', data, {
+    return this.metricsAggregateQueue.add('aggregate-probe', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 10_000 },
       jobId: safeJobId(
@@ -68,7 +66,7 @@ export class QueueService {
   }
 
   async addSnapshotJob(data: SnapshotJobData) {
-    return this.queues.snapshotRefresh.add('refresh-snapshot', data, {
+    return this.snapshotRefreshQueue.add('refresh-snapshot', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 10_000 },
       removeOnComplete: true,
@@ -76,11 +74,6 @@ export class QueueService {
     });
   }
 
-  private providerQueue(provider: ProbeProvider) {
-    if (provider === 'OpenAI') return this.queues.probeOpenai;
-    if (provider === 'Anthropic') return this.queues.probeAnthropic;
-    return this.queues.probeGemini;
-  }
 }
 
 function safeJobId(...parts: string[]) {

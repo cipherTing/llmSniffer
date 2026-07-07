@@ -50,7 +50,6 @@ describe('SchedulerWorker', () => {
 
     expect(queueService.addProbeJob).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: 'OpenAI',
         siteId: 'site-1',
         probeId: 'probe-1',
         region: 'default',

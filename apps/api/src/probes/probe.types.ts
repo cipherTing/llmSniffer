@@ -1,4 +1,5 @@
-import type { ProbeProvider, ProbeRegion } from '../queue/queue.constants';
+import type { ProviderTag } from '../admin/admin.constants';
+import type { ProbeRegion } from '../queue/queue.constants';
 
 export const PROBE_RESULT_STATUSES = [
   'ok',
@@ -14,7 +15,7 @@ export type NormalizedProbeResult = {
   siteId: string;
   probeId: string;
   region: ProbeRegion;
-  provider: ProbeProvider;
+  provider: ProviderTag;
   modelName: string;
   bucketStart: Date;
   scheduledAt: Date;

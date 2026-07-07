@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import type { ProbeProvider, ProbeRegion } from '../queue/queue.constants';
+import type { ProbeRegion } from '../queue/queue.constants';
 import type { NormalizedProbeResult, ProbeResultStatus } from './probe.types';
-import { buildProbeRequest, extractToken } from './templates';
+import {
+  buildProbeRequest,
+  extractToken,
+  providerForProbeTemplate,
+} from './templates';
 
 export type RunProbeInput = {
   siteId: string;
   probeId: string;
   region: ProbeRegion;
-  provider: ProbeProvider;
   requestTemplateId: string;
   baseUrl: string;
   apiKey: string;
@@ -63,7 +66,7 @@ export class ProbeRunnerService {
 
       const firstTokenAt = await readStreamUntilComplete(
         response.body,
-        input.provider,
+        input.requestTemplateId,
         this.runtime.now,
       );
       if (!firstTokenAt) {
@@ -115,7 +118,7 @@ export class ProbeRunnerService {
       siteId: input.siteId,
       probeId: input.probeId,
       region: input.region,
-      provider: input.provider,
+      provider: providerForProbeTemplate(input.requestTemplateId),
       modelName: input.modelName,
       bucketStart: input.bucketStart,
       scheduledAt: input.scheduledAt,
@@ -137,7 +140,7 @@ export class ProbeRunnerService {
 
 async function readStreamUntilComplete(
   body: ReadableStream<Uint8Array>,
-  provider: ProbeProvider,
+  requestTemplateId: string,
   now: () => Date,
 ) {
   const reader = body.getReader();
@@ -156,7 +159,7 @@ async function readStreamUntilComplete(
     if (eventLines.length === 0) return false;
     const eventText = eventLines.join('\n');
     eventLines = [];
-    return Boolean(extractToken(provider, eventText));
+    return Boolean(extractToken(requestTemplateId, eventText));
   };
 
   const processLine = (line: string) => {
